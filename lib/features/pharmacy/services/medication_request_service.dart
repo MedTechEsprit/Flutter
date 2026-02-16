@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
-import 'package:diab_care/features/pharmacy/services/pharmacy_auth_service.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 
 class MedicationRequestService {
-  final PharmacyAuthService _authService = PharmacyAuthService();
+  final AuthService _authService = AuthService();
 
   /// Fetch pending requests for current pharmacy
   /// GET /medication-request/pharmacy/{pharmacyId}/pending
@@ -15,7 +15,7 @@ class MedicationRequestService {
       debugPrint('📋 ========== FETCHING PENDING REQUESTS ==========');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       debugPrint('🔑 Token: ${token != null ? "OK (${token.length} chars)" : "NULL"}');
       debugPrint('🆔 PharmacyId: $pharmacyId');
@@ -78,7 +78,7 @@ class MedicationRequestService {
       debugPrint('📋 Status filter: $status');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       debugPrint('🔑 Token: ${token != null ? "OK" : "NULL"}');
       debugPrint('🆔 PharmacyId: $pharmacyId');
@@ -172,7 +172,7 @@ class MedicationRequestService {
   }) async {
     try {
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');

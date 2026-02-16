@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
@@ -246,7 +247,28 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: double.infinity,
                             height: 52,
                             child: OutlinedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                debugPrint('📝 Créer un compte clicked');
+                                debugPrint('🎭 Selected role: ${authVM.selectedRole}');
+
+                                // Navigation vers le bon écran d'inscription selon le rôle
+                                String route;
+                                switch (authVM.selectedRole) {
+                                  case UserRole.patient:
+                                    route = '/register-patient';
+                                    break;
+                                  case UserRole.doctor:
+                                    route = '/register-medecin';
+                                    break;
+                                  case UserRole.pharmacy:
+                                    route = '/register-pharmacien';
+                                    break;
+                                  default:
+                                    route = '/register-patient';
+                                }
+                                debugPrint('🚀 Navigating to: $route');
+                                Navigator.pushNamed(context, route);
+                              },
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey.shade300),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

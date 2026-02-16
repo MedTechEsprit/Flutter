@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
-import 'package:diab_care/features/pharmacy/services/pharmacy_auth_service.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 
 class BoostService {
-  final PharmacyAuthService _authService = PharmacyAuthService();
+  final AuthService _authService = AuthService();
 
   /// Activate a visibility boost
   /// POST /api/boost
@@ -18,7 +18,7 @@ class BoostService {
       debugPrint('⚡ Type: $boostType, Radius: $radiusKm km');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -86,7 +86,7 @@ class BoostService {
       debugPrint('⚡ ========== FETCHING ACTIVE BOOSTS ==========');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');

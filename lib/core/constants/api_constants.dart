@@ -10,15 +10,15 @@ class ApiConstants {
     // Détection automatique de la plateforme
     if (Platform.isAndroid) {
       // 10.0.2.2 est l'alias pour localhost sur l'émulateur Android
-      return 'http://10.0.2.2:3001/api';
+      return 'http://10.0.2.2:3000/api';
     } else {
       // iOS simulator ou desktop peut utiliser localhost
-      return 'http://localhost:3001/api';
+      return 'http://localhost:3000/api';
     }
   }
 
   // Si vous testez sur un appareil physique, remplacez par l'IP de votre PC
-  // static const String baseUrl = 'http://192.168.1.XXX:3001/api';
+  // static const String baseUrl = 'http://192.168.1.XXX:3000/api';
 
   // Authentication Endpoints
   static const String login = '/auth/login';

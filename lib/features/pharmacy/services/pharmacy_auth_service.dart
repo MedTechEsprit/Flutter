@@ -28,7 +28,7 @@ class PharmacyAuthService {
     try {
       final requestBody = jsonEncode({
         'email': email,
-        'motDePasse': password,
+        'password': password,
       });
       debugPrint('📤 Request body: $requestBody');
 

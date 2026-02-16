@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
-import 'package:diab_care/features/pharmacy/services/pharmacy_auth_service.dart';
 import 'package:diab_care/features/pharmacy/services/pharmacy_dashboard_service.dart';
 import 'package:diab_care/features/pharmacy/services/medication_request_service.dart';
 import 'package:diab_care/features/pharmacy/services/boost_service.dart';
@@ -16,7 +16,7 @@ enum LoadingState { initial, loading, loaded, error }
 /// ViewModel principal pour la pharmacie
 /// Gère l'état de l'authentification, du dashboard et des demandes
 class PharmacyViewModel extends ChangeNotifier {
-  final PharmacyAuthService _authService = PharmacyAuthService();
+  final AuthService _authService = AuthService();
   final PharmacyDashboardService _dashboardService = PharmacyDashboardService();
   final MedicationRequestService _requestService = MedicationRequestService();
   final BoostService _boostService = BoostService();
@@ -249,7 +249,10 @@ class PharmacyViewModel extends ChangeNotifier {
     debugPrint('📱 isLoggedIn from storage: $_isLoggedIn');
 
     if (_isLoggedIn) {
-      _pharmacyProfile = await _authService.getStoredProfile();
+      final userData = await _authService.getStoredUserData();
+      if (userData != null) {
+        _pharmacyProfile = PharmacyProfile.fromJson(userData);
+      }
       debugPrint('👤 Profile loaded: ${_pharmacyProfile?.nomPharmacie}');
       notifyListeners();
 
@@ -279,7 +282,7 @@ class PharmacyViewModel extends ChangeNotifier {
 
     try {
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       debugPrint('🔑 Token from storage: ${token != null ? "Present" : "NULL"}');
       debugPrint('🆔 PharmacyId from storage: $pharmacyId');
@@ -380,7 +383,10 @@ class PharmacyViewModel extends ChangeNotifier {
       final isLoggedInStorage = await _authService.isLoggedIn();
       if (isLoggedInStorage) {
         _isLoggedIn = true;
-        _pharmacyProfile = await _authService.getStoredProfile();
+        final userData = await _authService.getStoredUserData();
+        if (userData != null) {
+          _pharmacyProfile = PharmacyProfile.fromJson(userData);
+        }
       } else {
         debugPrint('❌ Cannot load dashboard: not authenticated');
         _dashboardState = LoadingState.error;
@@ -644,7 +650,7 @@ class PharmacyViewModel extends ChangeNotifier {
       debugPrint('🔄 Updating online status to: $isOnline');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');

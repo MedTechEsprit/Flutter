@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
-import 'package:diab_care/features/pharmacy/services/pharmacy_auth_service.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 
 class PharmacyDashboardService {
-  final PharmacyAuthService _authService = PharmacyAuthService();
+  final AuthService _authService = AuthService();
 
   /// Load complete dashboard data
   /// GET /pharmaciens/{pharmacyId}/dashboard
@@ -15,7 +15,7 @@ class PharmacyDashboardService {
       debugPrint('🔄 PharmacyDashboardService.loadDashboard() appelé');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       debugPrint('🔑 Token: ${token != null ? "Present (${token.length} chars)" : "NULL"}');
       debugPrint('🆔 PharmacyId: $pharmacyId');
@@ -106,7 +106,7 @@ class PharmacyDashboardService {
   Future<DashboardStats?> loadBasicStats() async {
     try {
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -136,7 +136,7 @@ class PharmacyDashboardService {
   Future<List<MonthlyStats>> loadMonthlyStats() async {
     try {
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -166,7 +166,7 @@ class PharmacyDashboardService {
   Future<List<ApiActivityEvent>> loadActivityFeed() async {
     try {
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -193,7 +193,7 @@ class PharmacyDashboardService {
   Future<Map<String, dynamic>?> loadReviewSummary() async {
     try {
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         return null;

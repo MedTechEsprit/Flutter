@@ -2,10 +2,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
-import 'package:diab_care/features/pharmacy/services/pharmacy_auth_service.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 
 class ActivityService {
-  final PharmacyAuthService _authService = PharmacyAuthService();
+  final AuthService _authService = AuthService();
 
   /// Get activity feed for pharmacy
   /// GET /api/activities/pharmacy/{pharmacyId}/feed
@@ -14,7 +14,7 @@ class ActivityService {
       debugPrint('📋 ========== FETCHING ACTIVITY FEED ==========');
 
       final token = await _authService.getToken();
-      final pharmacyId = await _authService.getPharmacyId();
+      final pharmacyId = await _authService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
