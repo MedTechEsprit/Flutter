@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/app_text_styles.dart';
-import 'package:diab_care/data/mock/mock_pharmacy_data.dart';
 import 'package:diab_care/data/models/pharmacy_models.dart';
 import 'package:diab_care/features/pharmacy/widgets/request_widgets.dart';
+import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
 
 class PharmacyRequestsScreen extends StatefulWidget {
   const PharmacyRequestsScreen({super.key});
@@ -14,162 +15,346 @@ class PharmacyRequestsScreen extends StatefulWidget {
 
 class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final Map<String, List<MedicationRequest>> _requestsByStatus = MockPharmacyData.requestsByStatus;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = context.read<PharmacyViewModel>();
+      if (viewModel.requestsState == LoadingState.initial) {
+        viewModel.loadAllRequests();
+      }
+    });
   }
 
   @override
-  void dispose() { _tabController.dispose(); super.dispose(); }
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            expandedHeight: 180, floating: true, pinned: true, snap: true,
-            backgroundColor: Colors.transparent, elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(gradient: AppColors.mixedGradient),
-                padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Demandes', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
-                  const SizedBox(height: 4),
-                  Text('Gérez les demandes de médicaments', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.85))),
-                  const SizedBox(height: 16),
-                  _buildSummaryRow(),
-                ]),
+    return Consumer<PharmacyViewModel>(
+      builder: (context, viewModel, child) {
+        final requestsByStatus = viewModel.requestsByStatus;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundPrimary,
+          body: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 100,
+                floating: false,
+                pinned: true,
+                backgroundColor: AppColors.primaryGreen,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text(
+                    'Demandes',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                  titlePadding: const EdgeInsets.only(left: 16, bottom: 50),
+                  background: Container(
+                    decoration: const BoxDecoration(gradient: AppColors.mainGradient),
+                  ),
+                ),
+                bottom: TabBar(
+                  controller: _tabController,
+                  indicatorColor: Colors.white,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  isScrollable: false,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  tabs: [
+                    Tab(text: 'En attente (${requestsByStatus['pending']?.length ?? 0})'),
+                    Tab(text: 'Acceptées (${requestsByStatus['accepted']?.length ?? 0})'),
+                    Tab(text: 'Refusées (${requestsByStatus['declined']?.length ?? 0})'),
+                    Tab(text: 'Expirées (${requestsByStatus['expired']?.length ?? 0})'),
+                  ],
+                ),
               ),
-            ),
-            bottom: PreferredSize(preferredSize: const Size.fromHeight(50), child: Container(
-              color: AppColors.background,
-              child: TabBar(
-                controller: _tabController,
-                labelColor: AppColors.primaryGreen,
-                unselectedLabelColor: AppColors.textMuted,
-                indicatorColor: AppColors.primaryGreen,
-                indicatorWeight: 3,
-                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                tabs: [
-                  Tab(text: 'En attente (${_requestsByStatus['pending']?.length ?? 0})'),
-                  Tab(text: 'Acceptées (${_requestsByStatus['accepted']?.length ?? 0})'),
-                  Tab(text: 'Refusées (${_requestsByStatus['declined']?.length ?? 0})'),
-                  Tab(text: 'Expirées (${_requestsByStatus['expired']?.length ?? 0})'),
-                ],
-              ),
-            )),
+              // État de chargement
+              if (viewModel.requestsState == LoadingState.loading)
+                const SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(color: AppColors.primaryGreen),
+                    ),
+                  ),
+                )
+              // État d'erreur
+              else if (viewModel.requestsState == LoadingState.error)
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error_outline, size: 64, color: AppColors.textMuted),
+                          const SizedBox(height: 16),
+                          Text('Erreur de chargement', style: AppTextStyles.header),
+                          const SizedBox(height: 8),
+                          Text(
+                            viewModel.requestsError ?? 'Une erreur est survenue',
+                            style: AppTextStyles.bodySecondary,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () => viewModel.loadAllRequests(),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Réessayer'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryGreen,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              // Contenu des tabs
+              else
+                SliverFillRemaining(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildRequestList(requestsByStatus['pending'] ?? [], viewModel),
+                      _buildRequestList(requestsByStatus['accepted'] ?? [], viewModel),
+                      _buildRequestList(requestsByStatus['declined'] ?? [], viewModel),
+                      _buildRequestList(requestsByStatus['expired'] ?? [], viewModel),
+                    ],
+                  ),
+                ),
+            ],
           ),
-        ],
-        body: TabBarView(controller: _tabController, children: [
-          _buildRequestList(_requestsByStatus['pending'] ?? []),
-          _buildRequestList(_requestsByStatus['accepted'] ?? []),
-          _buildRequestList(_requestsByStatus['declined'] ?? []),
-          _buildRequestList(_requestsByStatus['expired'] ?? []),
-        ]),
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow() {
-    final pending = _requestsByStatus['pending']?.length ?? 0;
-    final urgent = _requestsByStatus['pending']?.where((r) => r.isUrgent).length ?? 0;
-    return Row(children: [
-      _summaryChip('⏳', '$pending en attente', Colors.white.withOpacity(0.25)),
-      const SizedBox(width: 8),
-      if (urgent > 0) _summaryChip('⚡', '$urgent urgentes', Colors.red.withOpacity(0.3)),
-    ]);
-  }
-
-  Widget _summaryChip(String icon, String label, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [Text(icon, style: const TextStyle(fontSize: 14)), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white))]),
-    );
-  }
-
-  Widget _buildRequestList(List<MedicationRequest> requests) {
-    if (requests.isEmpty) {
-      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(gradient: AppColors.greenGradient, shape: BoxShape.circle), child: const Icon(Icons.inbox_rounded, size: 48, color: AppColors.darkGreen)),
-        const SizedBox(height: 16),
-        Text('Aucune demande', style: AppTextStyles.subheader),
-        const SizedBox(height: 8),
-        Text('Les demandes apparaîtront ici', style: AppTextStyles.bodySecondary),
-      ]));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: requests.length,
-      itemBuilder: (context, index) {
-        final req = requests[index];
-        return RequestCard(
-          request: req,
-          onAccept: req.status == RequestStatus.pending ? () => _showAcceptDialog(req) : null,
-          onDecline: req.status == RequestStatus.pending ? () => _showDeclineDialog(req) : null,
-          onIgnore: req.status == RequestStatus.pending ? () {} : null,
         );
       },
     );
   }
 
-  void _showAcceptDialog(MedicationRequest request) {
-    final priceController = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 20),
-          Text('Accepter la demande', style: AppTextStyles.header),
-          const SizedBox(height: 8),
-          Text(request.medicationName, style: AppTextStyles.subheader.copyWith(color: AppColors.primaryGreen)),
-          const SizedBox(height: 20),
-          TextField(controller: priceController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Prix (TND)', prefixIcon: const Icon(Icons.payments_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)), filled: true, fillColor: AppColors.secondaryBackground)),
-          const SizedBox(height: 20),
-          SizedBox(width: double.infinity, height: 52, child: ElevatedButton(onPressed: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Demande acceptée!'), backgroundColor: AppColors.primaryGreen, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: const Text('Confirmer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))),
-        ]),
+  Widget _buildRequestList(List<MedicationRequest> requests, PharmacyViewModel viewModel) {
+    if (requests.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text('Aucune demande', style: AppTextStyles.subheader),
+            const SizedBox(height: 8),
+            Text('Les demandes apparaîtront ici', style: AppTextStyles.bodySecondary),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => viewModel.loadAllRequests(),
+      color: AppColors.primaryGreen,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: requests.length,
+        itemBuilder: (context, index) {
+          final request = requests[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: RequestCard(
+              request: request,
+              onAccept: request.status == RequestStatus.pending
+                  ? () => _showAcceptDialog(request, viewModel)
+                  : null,
+              onDecline: request.status == RequestStatus.pending
+                  ? () => _showDeclineDialog(request, viewModel)
+                  : null,
+            ),
+          );
+        },
       ),
     );
   }
 
-  void _showDeclineDialog(MedicationRequest request) {
-    final reasons = ['Rupture de stock', 'Ordonnance requise', 'Hors catalogue', 'Autre'];
-    String? selectedReason;
+  void _showAcceptDialog(MedicationRequest request, PharmacyViewModel viewModel) {
+    final priceController = TextEditingController();
+    final messageController = TextEditingController();
+    String selectedDelay = '30min';
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 20),
-          Text('Refuser la demande', style: AppTextStyles.header),
-          const SizedBox(height: 16),
-          ...reasons.map((r) => GestureDetector(
-            onTap: () => setModalState(() => selectedReason = r),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: selectedReason == r ? AppColors.mintGreen : AppColors.secondaryBackground, borderRadius: BorderRadius.circular(12), border: Border.all(color: selectedReason == r ? AppColors.primaryGreen : AppColors.border)),
-              child: Text(r, style: TextStyle(fontWeight: selectedReason == r ? FontWeight.w600 : FontWeight.w400, color: AppColors.textPrimary)),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
             ),
-          )),
-          const SizedBox(height: 16),
-          SizedBox(width: double.infinity, height: 52, child: ElevatedButton(onPressed: selectedReason != null ? () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Demande refusée'), backgroundColor: AppColors.textSecondary, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))); } : null, style: ElevatedButton.styleFrom(backgroundColor: AppColors.textSecondary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: const Text('Confirmer le refus', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))),
-        ]),
-      )),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Accepter la demande', style: AppTextStyles.header),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Prix indicatif (TND)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedDelay,
+                  decoration: const InputDecoration(
+                    labelText: 'Délai de préparation',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'immediate', child: Text('Immédiat')),
+                    DropdownMenuItem(value: '30min', child: Text('30 minutes')),
+                    DropdownMenuItem(value: '1h', child: Text('1 heure')),
+                    DropdownMenuItem(value: '2h', child: Text('2 heures')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setModalState(() => selectedDelay = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: messageController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Message (optionnel)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Annuler'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final price = double.tryParse(priceController.text);
+                          if (price == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Prix invalide')),
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(context);
+                          await viewModel.acceptRequest(
+                            requestId: request.id,
+                            price: price,
+                            preparationDelay: selectedDelay,
+                            message: messageController.text,
+                          );
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Demande acceptée')),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Accepter'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showDeclineDialog(MedicationRequest request, PharmacyViewModel viewModel) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refuser la demande'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Veuillez indiquer la raison du refus:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Raison',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (reasonController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Veuillez indiquer une raison')),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              await viewModel.declineRequest(
+                request.id,
+                message: reasonController.text,
+              );
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Demande refusée')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Refuser'),
+          ),
+        ],
+      ),
     );
   }
 }
+

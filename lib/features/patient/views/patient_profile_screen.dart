@@ -4,15 +4,24 @@ import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/theme_provider.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 
 class PatientProfileScreen extends StatelessWidget {
   const PatientProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final patient = context.watch<PatientViewModel>().patient;
+    final patientVM = context.watch<PatientViewModel>();
+    final patient = patientVM.patient;
     final glucoseVM = context.watch<GlucoseViewModel>();
     final themeProvider = context.watch<ThemeProvider>();
+
+    if (patientVM.isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundPrimary,
+        body: Center(child: CircularProgressIndicator(color: AppColors.softGreen)),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.backgroundPrimary,
@@ -64,7 +73,7 @@ class PatientProfileScreen extends StatelessWidget {
                         const Divider(height: 20),
                         _InfoRow(label: 'Groupe sanguin', value: patient?.bloodType ?? '-'),
                         const Divider(height: 20),
-                        _InfoRow(label: 'HbA1c', value: '${patient?.hba1c ?? '-'}%'),
+                        _InfoRow(label: 'HbA1c', value: '${glucoseVM.estimatedHba1c?.toStringAsFixed(1) ?? patient?.hba1c ?? '-'}%'),
                         const Divider(height: 20),
                         _InfoRow(label: 'IMC', value: '${patient?.bmi ?? '-'}'),
                         const Divider(height: 20),
@@ -146,7 +155,12 @@ class PatientProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+                      onPressed: () async {
+                        await AuthService().logout();
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                        }
+                      },
                       icon: const Icon(Icons.logout),
                       label: const Text('Se déconnecter'),
                       style: OutlinedButton.styleFrom(

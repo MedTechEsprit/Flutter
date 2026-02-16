@@ -6,6 +6,9 @@ class GlucoseReading {
   final String type; // 'fasting', 'before_meal', 'after_meal', 'bedtime', 'random'
   final String source; // 'manual', 'glucometer'
   final String? notes;
+  final String? contexte;
+  final String? humeur;
+  final String? activiteAvant;
 
   GlucoseReading({
     required this.id,
@@ -15,7 +18,47 @@ class GlucoseReading {
     required this.type,
     this.source = 'manual',
     this.notes,
+    this.contexte,
+    this.humeur,
+    this.activiteAvant,
   });
+
+  factory GlucoseReading.fromJson(Map<String, dynamic> json) {
+    // Le backend utilise l'enum: fasting, before_meal, after_meal, bedtime
+    String type = json['period']?.toString() ?? 'random';
+    // Accepter les valeurs telles quelles du backend
+    if (!['fasting', 'before_meal', 'after_meal', 'bedtime', 'random'].contains(type)) {
+      type = 'random';
+    }
+
+    return GlucoseReading(
+      id: json['_id'] ?? json['id'] ?? '',
+      patientId: json['patientId'] ?? json['patient'] ?? '',
+      value: (json['value'] as num?)?.toDouble() ?? 0.0,
+      timestamp: json['measuredAt'] != null
+          ? DateTime.parse(json['measuredAt'].toString())
+          : DateTime.now(),
+      type: type,
+      source: json['source'] ?? 'manual',
+      notes: json['notes'],
+      contexte: json['contexte'],
+      humeur: json['humeur'],
+      activiteAvant: json['activiteAvant'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'value': value,
+      'measuredAt': timestamp.toIso8601String(),
+      'period': type, // déjà au bon format: fasting, before_meal, etc.
+      'source': source,
+      if (notes != null) 'notes': notes,
+      if (contexte != null) 'contexte': contexte,
+      if (humeur != null) 'humeur': humeur,
+      if (activiteAvant != null) 'activiteAvant': activiteAvant,
+    };
+  }
 
   String get typeLabel {
     switch (type) {

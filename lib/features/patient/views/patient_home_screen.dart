@@ -31,9 +31,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GlucoseViewModel>().loadReadings();
-      context.read<PatientViewModel>().loadPatientData();
+      _loadData();
     });
+  }
+
+  Future<void> _loadData() async {
+    // Charger les données en parallèle depuis l'API
+    await Future.wait([
+      context.read<GlucoseViewModel>().loadReadings(),
+      context.read<PatientViewModel>().loadPatientData(),
+    ]);
   }
 
   @override

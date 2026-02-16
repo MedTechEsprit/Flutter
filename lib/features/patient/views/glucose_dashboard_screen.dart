@@ -146,7 +146,7 @@ class GlucoseDashboardScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(child: _StatMiniCard(label: 'Temps cible', value: '${glucoseVM.timeInRange.toInt()}', unit: '%', color: AppColors.lightBlue)),
                   const SizedBox(width: 10),
-                  Expanded(child: _StatMiniCard(label: 'HbA1c', value: '${patient?.hba1c ?? '-'}', unit: '%', color: AppColors.lavender)),
+                  Expanded(child: _StatMiniCard(label: 'HbA1c', value: '${glucoseVM.estimatedHba1c?.toStringAsFixed(1) ?? patient?.hba1c ?? '-'}', unit: '%', color: AppColors.lavender)),
                 ],
               ),
             ),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,6 +37,15 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
+      // Si c'est une pharmacie, initialiser le PharmacyViewModel avec le profil
+      if (authVM.selectedRole == UserRole.pharmacy && authVM.pharmacyProfile != null) {
+        final pharmacyVM = context.read<PharmacyViewModel>();
+        debugPrint('🔄 Initialisation du PharmacyViewModel depuis LoginScreen');
+        // Passer directement le profil pour éviter les problèmes de timing
+        await pharmacyVM.initializeWithProfile(authVM.pharmacyProfile!);
+      }
+
+      // Navigation selon le rôle
       String route;
       switch (authVM.selectedRole) {
         case UserRole.patient:
@@ -49,6 +60,8 @@ class _LoginScreenState extends State<LoginScreen> {
         default:
           route = '/';
       }
+
+      debugPrint('🚀 Navigation vers: $route');
       Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
     }
   }
@@ -133,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderSide: const BorderSide(color: AppColors.softGreen, width: 2),
                               ),
                             ),
-                            validator: (v) => v == null || v.isEmpty ? 'Email requis' : null,
+                            validator: (v) => v == null || v.isEmpty || !v.contains('@') ? 'Email invalide' : null,
                           ),
                           const SizedBox(height: 16),
                           // Password
@@ -142,7 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               labelText: 'Mot de passe',
-                              prefixIcon: const Icon(Icons.lock_outlined),
+                              hintText: '••••••••',
+                              prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -159,6 +173,36 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             validator: (v) => v == null || v.isEmpty ? 'Mot de passe requis' : null,
                           ),
+                          // Error message
+                          if (authVM.loginError != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      authVM.loginError!,
+                                      style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close, color: Colors.red.shade700, size: 18),
+                                    onPressed: () => authVM.clearError(),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           Align(
                             alignment: Alignment.centerRight,
@@ -203,7 +247,28 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: double.infinity,
                             height: 52,
                             child: OutlinedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                debugPrint('📝 Créer un compte clicked');
+                                debugPrint('🎭 Selected role: ${authVM.selectedRole}');
+
+                                // Navigation vers le bon écran d'inscription selon le rôle
+                                String route;
+                                switch (authVM.selectedRole) {
+                                  case UserRole.patient:
+                                    route = '/register-patient';
+                                    break;
+                                  case UserRole.doctor:
+                                    route = '/register-medecin';
+                                    break;
+                                  case UserRole.pharmacy:
+                                    route = '/register-pharmacien';
+                                    break;
+                                  default:
+                                    route = '/register-patient';
+                                }
+                                debugPrint('🚀 Navigating to: $route');
+                                Navigator.pushNamed(context, route);
+                              },
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey.shade300),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

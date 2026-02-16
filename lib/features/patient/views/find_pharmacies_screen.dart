@@ -16,7 +16,7 @@ class _FindPharmaciesScreenState extends State<FindPharmaciesScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<PatientViewModel>();
-    final pharmacies = vm.pharmacies.where((p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || (p.address ?? '').toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final pharmacies = vm.pharmacies.where((p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || p.address.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundPrimary,
@@ -56,7 +56,12 @@ class _FindPharmaciesScreenState extends State<FindPharmaciesScreen> {
               ),
             ),
           ),
-          SliverPadding(
+          if (vm.isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator(color: AppColors.softGreen)),
+            )
+          else
+            SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: pharmacies.isEmpty
                 ? const SliverFillRemaining(child: Center(child: Text('Aucune pharmacie trouvée', style: TextStyle(color: AppColors.textMuted))))

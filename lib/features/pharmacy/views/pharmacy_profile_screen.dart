@@ -1,157 +1,340 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
-import 'package:diab_care/core/theme/app_text_styles.dart';
-import 'package:diab_care/core/theme/theme_provider.dart';
-import 'package:diab_care/data/mock/mock_pharmacy_data.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
 
-class PharmacyProfileScreen extends StatelessWidget {
+class PharmacyProfileScreen extends StatefulWidget {
   const PharmacyProfileScreen({super.key});
 
   @override
+  State<PharmacyProfileScreen> createState() => _PharmacyProfileScreenState();
+}
+
+class _PharmacyProfileScreenState extends State<PharmacyProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = context.read<PharmacyViewModel>();
+      if (viewModel.dashboardData == null && viewModel.dashboardState != LoadingState.loading) {
+        viewModel.loadDashboard();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final stats = MockPharmacyData.pharmacyStats;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 260,
-            pinned: true,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(gradient: AppColors.mixedGradient),
-                child: SafeArea(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const SizedBox(height: 20),
-                  Container(width: 100, height: 100, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20)]), child: const CircleAvatar(radius: 48, backgroundColor: Colors.white, child: Icon(Icons.local_pharmacy_rounded, size: 48, color: AppColors.primaryGreen))),
-                  const SizedBox(height: 16),
-                  const Text('Pharmacie Centrale', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-                  const SizedBox(height: 6),
-                  Text('pharmacie@diabcare.tn', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.85))),
-                  const SizedBox(height: 12),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.star_rounded, color: Colors.white, size: 18), const SizedBox(width: 4), Text('${stats.averageRating} / 5.0', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))])),
-                ])),
+    return Consumer<PharmacyViewModel>(
+      builder: (context, viewModel, child) {
+        final pharmacy = viewModel.pharmacyProfile;
+        final stats = viewModel.pharmacyStats;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundPrimary,
+          body: CustomScrollView(
+            slivers: [
+              // App bar avec gradient
+              SliverAppBar(
+                expandedHeight: 200,
+                floating: false,
+                pinned: true,
+                backgroundColor: AppColors.warmPeach,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(gradient: AppColors.mainGradient),
+                    child: SafeArea(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 20),
+                          // Avatar
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 20,
+                                ),
+                              ],
+                            ),
+                            child: const CircleAvatar(
+                              radius: 48,
+                              backgroundColor: Colors.white,
+                              child: Icon(Icons.local_pharmacy_rounded, size: 48, color: AppColors.primaryGreen),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Nom
+                          Text(
+                            pharmacy?.nomPharmacie ?? 'Pharmacie',
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(height: 6),
+                          // Email
+                          Text(
+                            pharmacy?.email ?? '',
+                            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.85)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
+              // Contenu
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Stats rapides
+                      if (stats != null) _buildQuickStats(stats),
+                      const SizedBox(height: 24),
+                      // Informations
+                      _buildInfoSection(pharmacy),
+                      const SizedBox(height: 24),
+                      // Paramètres
+                      _buildSettingsSection(context),
+                      const SizedBox(height: 24),
+                      // Déconnexion
+                      _buildLogoutButton(context),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickStats(dynamic stats) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Statistiques', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatItem('Demandes', '${stats.totalRequests}', Icons.inbox),
+                _buildStatItem('Acceptées', '${stats.acceptedRequests}', Icons.check_circle),
+                _buildStatItem('Clients', '${stats.newClients}', Icons.people),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppColors.primaryGreen, size: 32),
+        const SizedBox(height: 8),
+        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _buildInfoSection(dynamic pharmacy) {
+    if (pharmacy == null) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Aucune information disponible'),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Informations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            _buildInfoRow(Icons.person, 'Nom', '${pharmacy.nom} ${pharmacy.prenom}'),
+            _buildInfoRow(Icons.email, 'Email', pharmacy.email),
+            _buildInfoRow(Icons.phone, 'Téléphone', pharmacy.telephonePharmacie ?? 'N/A'),
+            _buildInfoRow(Icons.location_on, 'Adresse', pharmacy.adressePharmacie ?? 'N/A'),
+            _buildInfoRow(Icons.badge, 'Numéro d\'ordre', pharmacy.numeroOrdre ?? 'N/A'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primaryGreen, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ],
             ),
           ),
-          SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(children: [
-              _buildQuickStats(stats),
-              const SizedBox(height: 24),
-              _buildInfoSection(),
-              const SizedBox(height: 24),
-              _buildSettingsSection(context),
-              const SizedBox(height: 24),
-              _buildLogoutButton(context),
-              const SizedBox(height: 40),
-            ]),
-          )),
         ],
       ),
     );
   }
 
-  Widget _buildQuickStats(stats) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: AppColors.primaryGreen.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 5))]),
-      child: Row(children: [
-        _statItem('${stats.totalRequests}', 'Total', Icons.list_alt_rounded),
-        _divider(),
-        _statItem('${stats.acceptedRequests}', 'Acceptées', Icons.check_circle_rounded),
-        _divider(),
-        _statItem('${stats.acceptanceRate.toStringAsFixed(0)}%', 'Taux', Icons.trending_up_rounded),
-        _divider(),
-        _statItem('${stats.responseTimeMinutes}m', 'Réponse', Icons.timer_rounded),
-      ]),
-    );
-  }
-
-  Widget _statItem(String value, String label, IconData icon) {
-    return Expanded(child: Column(children: [
-      Icon(icon, color: AppColors.primaryGreen, size: 22),
-      const SizedBox(height: 8),
-      Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-      const SizedBox(height: 4),
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-    ]));
-  }
-
-  Widget _divider() => Container(width: 1, height: 50, color: AppColors.border);
-
-  Widget _buildInfoSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Informations', style: AppTextStyles.header),
-        const SizedBox(height: 16),
-        _infoRow(Icons.location_on_rounded, 'Adresse', '12 Rue de la Santé, Tunis'),
-        _infoRow(Icons.phone_rounded, 'Téléphone', '+216 71 234 567'),
-        _infoRow(Icons.access_time_rounded, 'Horaires', '08:00 - 20:00'),
-        _infoRow(Icons.local_pharmacy_rounded, 'Licence', 'PH-2024-0042'),
-      ]),
-    );
-  }
-
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(children: [
-        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(gradient: AppColors.greenGradient, borderRadius: BorderRadius.circular(12)), child: Icon(icon, size: 20, color: AppColors.darkGreen)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 2), Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary))])),
-      ]),
-    );
-  }
-
   Widget _buildSettingsSection(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Paramètres', style: AppTextStyles.header),
-        const SizedBox(height: 16),
-        _settingsRow(Icons.notifications_rounded, 'Notifications', trailing: Switch(value: true, onChanged: (v) {}, activeColor: AppColors.primaryGreen)),
-        _settingsRow(Icons.dark_mode_rounded, 'Mode Sombre', trailing: Switch(value: themeProvider.isDarkMode, onChanged: (v) => themeProvider.toggleTheme(), activeColor: AppColors.primaryGreen)),
-        _settingsRow(Icons.language_rounded, 'Langue', trailing: const Text('Français', style: TextStyle(color: AppColors.textSecondary))),
-        _settingsRow(Icons.shield_rounded, 'Confidentialité'),
-        _settingsRow(Icons.help_outline_rounded, 'Aide & Support'),
-      ]),
-    );
-  }
+    return Consumer<PharmacyViewModel>(
+      builder: (context, viewModel, child) {
+        final isOnline = viewModel.pharmacyProfile?.isOnDuty ?? true;
 
-  Widget _settingsRow(IconData icon, String label, {Widget? trailing}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(children: [
-        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.secondaryBackground, borderRadius: BorderRadius.circular(12)), child: Icon(icon, size: 20, color: AppColors.textSecondary)),
-        const SizedBox(width: 14),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary))),
-        trailing ?? const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
-      ]),
+        return Card(
+          child: Column(
+            children: [
+              // Mode Activité (En ligne / Hors ligne)
+              ListTile(
+                leading: Icon(
+                  isOnline ? Icons.cloud_done : Icons.cloud_off,
+                  color: isOnline ? Colors.green : Colors.grey,
+                ),
+                title: const Text('Mode Activité'),
+                subtitle: Text(
+                  isOnline ? 'Vous êtes en ligne' : 'Vous êtes hors ligne',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isOnline ? Colors.green : Colors.grey,
+                  ),
+                ),
+                trailing: Switch(
+                  value: isOnline,
+                  activeColor: AppColors.primaryGreen,
+                  onChanged: (value) async {
+                    // Afficher un dialog de confirmation
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: Row(
+                          children: [
+                            Icon(
+                              value ? Icons.power_settings_new : Icons.power_off,
+                              color: value ? Colors.green : Colors.grey,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(value ? 'Passer en ligne' : 'Passer hors ligne'),
+                          ],
+                        ),
+                        content: Text(
+                          value
+                              ? 'En passant en ligne, vous recevrez des demandes de médicaments des patients à proximité.'
+                              : 'En passant hors ligne, vous ne recevrez plus de nouvelles demandes jusqu\'à ce que vous vous reconnectiez.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Annuler'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: value ? AppColors.primaryGreen : Colors.grey,
+                            ),
+                            child: Text(value ? 'Passer en ligne' : 'Passer hors ligne'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      // Mettre à jour le statut
+                      await viewModel.updateOnlineStatus(value);
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              value
+                                  ? '✅ Vous êtes maintenant en ligne'
+                                  : '🔴 Vous êtes maintenant hors ligne',
+                            ),
+                            backgroundColor: value ? Colors.green : Colors.grey,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.notifications, color: AppColors.primaryGreen),
+                title: const Text('Notifications'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {},
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.settings, color: AppColors.primaryGreen),
+                title: const Text('Paramètres'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {},
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.help, color: AppColors.primaryGreen),
+                title: const Text('Aide'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {},
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildLogoutButton(BuildContext context) {
     return SizedBox(
-      width: double.infinity, height: 52,
+      width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {
+        onPressed: () async {
           final authVm = Provider.of<AuthViewModel>(context, listen: false);
+          final pharmacyVm = Provider.of<PharmacyViewModel>(context, listen: false);
+          await pharmacyVm.logout();
           authVm.logout();
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          }
         },
-        icon: const Icon(Icons.logout_rounded),
-        label: const Text('Déconnexion', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        icon: const Icon(Icons.logout),
+        label: const Text('Déconnexion'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
 }
+

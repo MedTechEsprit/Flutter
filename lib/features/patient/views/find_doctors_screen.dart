@@ -56,7 +56,12 @@ class _FindDoctorsScreenState extends State<FindDoctorsScreen> {
               ),
             ),
           ),
-          SliverPadding(
+          if (vm.isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator(color: AppColors.softGreen)),
+            )
+          else
+            SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: doctors.isEmpty
                 ? const SliverFillRemaining(
