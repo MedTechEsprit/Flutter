@@ -15,82 +15,76 @@ class RoleSelectionScreen extends StatelessWidget {
         decoration: const BoxDecoration(gradient: AppColors.mainGradient),
         child: SafeArea(
           child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: screenHeight - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    SizedBox(height: screenHeight * 0.06),
-                    // Logo & Title
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: screenHeight * 0.06),
+                  // Logo & Title
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.favorite, size: 50, color: Colors.white),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'DiabCare',
+                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Votre partenaire santé',
+                    style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.9)),
+                  ),
+                  SizedBox(height: screenHeight * 0.05),
+                  // Role Selection
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Je suis un(e) ...',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.95)),
                       ),
-                      child: const Icon(Icons.favorite, size: 50, color: Colors.white),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'DiabCare',
-                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Votre partenaire santé',
-                      style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.9)),
-                    ),
-                    SizedBox(height: screenHeight * 0.05),
-                    // Role Selection
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Je suis un(e) ...',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.95)),
-                          ),
-                          const SizedBox(height: 16),
-                          _RoleCard(
-                            icon: Icons.person,
-                            title: 'Patient',
-                            subtitle: 'Suivre ma glycémie et consulter mes médecins',
-                            role: UserRole.patient,
-                            color: AppColors.softGreen,
-                          ),
-                          const SizedBox(height: 12),
-                          _RoleCard(
-                            icon: Icons.medical_services,
-                            title: 'Médecin',
-                            subtitle: 'Gérer mes patients et suivre leurs données',
-                            role: UserRole.doctor,
-                            color: AppColors.lightBlue,
-                          ),
-                          const SizedBox(height: 12),
-                          _RoleCard(
-                            icon: Icons.local_pharmacy,
-                            title: 'Pharmacien',
-                            subtitle: 'Gérer les demandes de médicaments',
-                            role: UserRole.pharmacy,
-                            color: AppColors.warmPeach,
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      _RoleCard(
+                        icon: Icons.person,
+                        title: 'Patient',
+                        subtitle: 'Suivre ma glycémie et consulter mes médecins',
+                        role: UserRole.patient,
+                        color: AppColors.softGreen,
                       ),
-                    ),
-                    const Spacer(),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        'v1.0.0 - DiabCare ©2025',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+                      const SizedBox(height: 12),
+                      _RoleCard(
+                        icon: Icons.medical_services,
+                        title: 'Médecin',
+                        subtitle: 'Gérer mes patients et suivre leurs données',
+                        role: UserRole.doctor,
+                        color: AppColors.lightBlue,
                       ),
+                      const SizedBox(height: 12),
+                      _RoleCard(
+                        icon: Icons.local_pharmacy,
+                        title: 'Pharmacien',
+                        subtitle: 'Gérer les demandes de médicaments',
+                        role: UserRole.pharmacy,
+                        color: AppColors.warmPeach,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: screenHeight * 0.04),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'v1.0.0 - DiabCare ©2025',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -6,6 +6,7 @@ import 'package:diab_care/core/services/token_service.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
+import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
 import 'package:diab_care/features/auth/views/role_selection_screen.dart';
 import 'package:diab_care/features/auth/views/login_screen.dart';
 import 'package:diab_care/features/auth/views/register_patient_screen.dart';
@@ -47,6 +48,7 @@ class DiabCareApp extends StatelessWidget {
         }),
         ChangeNotifierProvider(create: (_) => GlucoseViewModel()),
         ChangeNotifierProvider(create: (_) => PatientViewModel()),
+        ChangeNotifierProvider(create: (_) => PharmacyViewModel()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
