@@ -5,8 +5,7 @@ import 'package:diab_care/core/theme/app_text_styles.dart';
 import 'package:diab_care/data/models/pharmacy_models.dart';
 import 'package:diab_care/features/pharmacy/widgets/request_widgets.dart';
 import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
-
-import 'package:diab_care/features/pharmacy/widgets/gamification_popups.dart';
+import 'package:diab_care/features/pharmacy/widgets/points_reward_popup.dart';
 
 class PharmacyRequestsScreen extends StatefulWidget {
   const PharmacyRequestsScreen({super.key});
@@ -177,6 +176,9 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
               onDecline: request.status == RequestStatus.pending
                   ? () => _showDeclineDialog(request, viewModel)
                   : null,
+              onUnavailable: request.status == RequestStatus.pending
+                  ? () => _showUnavailableDialog(request, viewModel)
+                  : null,
             ),
           );
         },
@@ -184,6 +186,9 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
     );
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // ACCEPT DIALOG - Shows form then points popup
+  // ─────────────────────────────────────────────────────────────
   void _showAcceptDialog(MedicationRequest request, PharmacyViewModel viewModel) {
     final priceController = TextEditingController();
     final messageController = TextEditingController();
@@ -192,38 +197,85 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
-              left: 20,
-              right: 20,
-              top: 20,
+              left: 24,
+              right: 24,
+              top: 24,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Accepter la demande', style: AppTextStyles.header),
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 20),
+
+                // Title
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.primaryGreen,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('Accepter la demande', style: AppTextStyles.header),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Price field
                 TextField(
                   controller: priceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
                     labelText: 'Prix indicatif (TND)',
-                    border: OutlineInputBorder(),
+                    hintText: 'Ex: 25.50',
+                    prefixIcon: const Icon(Icons.attach_money),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.primaryGreen, width: 2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Delay dropdown
                 DropdownButtonFormField<String>(
                   value: selectedDelay,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Délai de préparation',
-                    border: OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.timer_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'immediate', child: Text('Immédiat')),
@@ -238,253 +290,64 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // Message field
                 TextField(
                   controller: messageController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
+                  maxLines: 2,
+                  decoration: InputDecoration(
                     labelText: 'Message (optionnel)',
-                    border: OutlineInputBorder(),
+                    hintText: 'Information complémentaire...',
+                    prefixIcon: const Icon(Icons.message_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+
+                // Buttons
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                         child: const Text('Annuler'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final price = double.tryParse(priceController.text);
-                          if (price == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Prix invalide')),
-                            );
-                            return;
-                          }
-
-                          // Close the form dialog first
-                          Navigator.pop(context);
-
-                          try {
-                            // 🎮 Call ViewModel to respond to request
-                            final result = await viewModel.respondToMedicationRequest(
-                              requestId: request.id,
-                              status: 'accepted',
-                              indicativePrice: price,
-                              preparationDelay: selectedDelay,
-                              pharmacyMessage: messageController.text,
-                            );
-
-                            print('🎮 RESULT: $result');
-
-                            // Show points dialog immediately
-                            if (mounted && result['success'] == true) {
-                              // SUCCESS - Show points popup like in guide
-                              await showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => Dialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        // TITRE
-                                        const Text(
-                                          '🎉 POINTS GAGNÉS! 🎉',
-                                          style: TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-
-                                        const SizedBox(height: 24),
-
-                                        // GROS NOMBRE POINTS
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
-                                          child: Text(
-                                            '+${result['pointsAwarded'] ?? 0}',
-                                            style: TextStyle(
-                                              fontSize: 64,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.green[600],
-                                            ),
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 16),
-
-                                        // BREAKDOWN CARD
-                                        if (result['basePoints'] != null) ...[
-                                          Container(
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[100],
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                const Text(
-                                                  'Breakdown:',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Text('• Base Points: +${result['basePoints']}'),
-                                                Text('• Bonus: +${result['bonusPoints'] ?? 0}'),
-                                                const SizedBox(height: 12),
-                                                Divider(color: Colors.grey[400]),
-                                                const SizedBox(height: 12),
-                                                if (result['reason'] != null)
-                                                  Text(
-                                                    result['reason'],
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontStyle: FontStyle.italic,
-                                                      color: Colors.grey[700],
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-
-                                        const SizedBox(height: 16),
-
-                                        // PROGRESSION
-                                        if (result['beforePoints'] != null && result['afterPoints'] != null) ...[
-                                          Container(
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue[50],
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                              children: [
-                                                Column(
-                                                  children: [
-                                                    const Text('Avant', style: TextStyle(fontSize: 10)),
-                                                    Text(
-                                                      '${result['beforePoints']}',
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const Icon(Icons.arrow_forward),
-                                                Column(
-                                                  children: [
-                                                    const Text('Après', style: TextStyle(fontSize: 10)),
-                                                    Text(
-                                                      '${result['afterPoints']}',
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Colors.green,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-
-                                        const SizedBox(height: 24),
-
-                                        // BOUTON FERMER
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            viewModel.refreshGamificationData();
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                          child: const Text(
-                                            '✓ FERMER',
-                                            style: TextStyle(fontSize: 16, color: Colors.white),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-
-                              // Refresh dashboard after closing
-                              if (mounted) {
-                                viewModel.loadDashboard();
-                              }
-                            } else if (mounted) {
-                              // ERROR - show error dialog
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Row(
-                                    children: [
-                                      Icon(Icons.error, color: Colors.red),
-                                      SizedBox(width: 8),
-                                      Text('Erreur'),
-                                    ],
-                                  ),
-                                  content: Text(result['error'] ?? 'Une erreur est survenue'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('OK'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            // Show error
-                            if (mounted) {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Erreur'),
-                                  content: Text('Exception: $e'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('OK'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                          }
-                        },
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _handleAccept(
+                          context,
+                          request,
+                          viewModel,
+                          priceController.text,
+                          selectedDelay,
+                          messageController.text,
+                        ),
+                        icon: const Icon(Icons.check, size: 20),
+                        label: const Text('Accepter'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryGreen,
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        child: const Text('Accepter'),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
             ),
           );
@@ -493,24 +356,137 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
     );
   }
 
-  void _showDeclineDialog(MedicationRequest request, PharmacyViewModel viewModel) {
-    final reasonController = TextEditingController();
+  Future<void> _handleAccept(
+    BuildContext dialogContext,
+    MedicationRequest request,
+    PharmacyViewModel viewModel,
+    String priceText,
+    String delay,
+    String message,
+  ) async {
+    final price = double.tryParse(priceText);
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez entrer un prix valide'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Close the form
+    Navigator.pop(dialogContext);
+
+    // Show loading indicator
+    _showLoadingDialog();
+
+    try {
+      final result = await viewModel.respondToMedicationRequest(
+        requestId: request.id,
+        status: 'accepted',
+        indicativePrice: price,
+        preparationDelay: delay,
+        pharmacyMessage: message.isNotEmpty ? message : null,
+      );
+
+      // Close loading
+      if (mounted) Navigator.pop(context);
+
+      if (mounted && result['success'] == true) {
+        // Show points reward popup
+        await showPointsRewardPopup(
+          context: context,
+          type: RewardPopupType.accepted,
+          pointsAwarded: result['pointsAwarded'] ?? 0,
+          basePoints: result['basePoints'],
+          bonusPoints: result['bonusPoints'],
+          reason: result['reason'],
+          beforePoints: result['beforePoints'],
+          afterPoints: result['afterPoints'],
+          breakdown: _buildBreakdownList(result),
+        );
+
+        // Refresh data
+        if (mounted) {
+          viewModel.loadDashboard();
+          viewModel.refreshGamificationData();
+        }
+      } else if (mounted) {
+        _showErrorDialog(result['error'] ?? 'Une erreur est survenue');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close loading
+      if (mounted) _showErrorDialog('Exception: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // UNAVAILABLE DIALOG - Mark as not available (+5 points)
+  // ─────────────────────────────────────────────────────────────
+  void _showUnavailableDialog(MedicationRequest request, PharmacyViewModel viewModel) {
+    final messageController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Refuser la demande'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.inventory_2_outlined, color: Colors.orange),
+            ),
+            const SizedBox(width: 12),
+            const Text('Non disponible'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Veuillez indiquer la raison du refus:'),
+            Text(
+              'Indiquez que ce médicament n\'est pas disponible.',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Vous gagnerez +5 points pour votre réponse honnête!',
+                      style: TextStyle(
+                        color: Colors.orange[800],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Raison',
-                border: OutlineInputBorder(),
+              controller: messageController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Message (optionnel)',
+                hintText: 'Ex: Rupture de stock temporaire',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -521,30 +497,141 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              if (reasonController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Veuillez indiquer une raison')),
-                );
-                return;
-              }
+            onPressed: () => _handleUnavailable(ctx, request, viewModel, messageController.text),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+  }
 
-              Navigator.pop(context);
+  Future<void> _handleUnavailable(
+    BuildContext dialogContext,
+    MedicationRequest request,
+    PharmacyViewModel viewModel,
+    String message,
+  ) async {
+    Navigator.pop(dialogContext);
+    _showLoadingDialog();
 
-              await viewModel.declineRequest(
-                request.id,
-                message: reasonController.text,
-              );
+    try {
+      final result = await viewModel.respondToMedicationRequest(
+        requestId: request.id,
+        status: 'unavailable',
+        pharmacyMessage: message.isNotEmpty ? message : null,
+      );
 
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Demande refusée')),
-                );
-              }
-            },
+      if (mounted) Navigator.pop(context); // Close loading
+
+      if (mounted && result['success'] == true) {
+        await showPointsRewardPopup(
+          context: context,
+          type: RewardPopupType.unavailable,
+          pointsAwarded: result['pointsAwarded'] ?? 5,
+          reason: 'Réponse honnête et rapide',
+          beforePoints: result['beforePoints'],
+          afterPoints: result['afterPoints'],
+          breakdown: ['+5 points (réponse honnête)'],
+        );
+
+        if (mounted) {
+          viewModel.loadDashboard();
+          viewModel.refreshGamificationData();
+        }
+      } else if (mounted) {
+        _showErrorDialog(result['error'] ?? 'Une erreur est survenue');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) _showErrorDialog('Exception: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DECLINE DIALOG - Reject request (0 points)
+  // ─────────────────────────────────────────────────────────────
+  void _showDeclineDialog(MedicationRequest request, PharmacyViewModel viewModel) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.cancel_outlined, color: Colors.red),
+            ),
+            const SizedBox(width: 12),
+            const Text('Refuser la demande'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Veuillez indiquer la raison du refus:',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Aucun point pour cette action',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Raison du refus *',
+                hintText: 'Ex: Ordonnance invalide, produit contrôlé...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => _handleDecline(ctx, request, viewModel, reasonController.text),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Refuser'),
           ),
@@ -552,5 +639,108 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
       ),
     );
   }
-}
 
+  Future<void> _handleDecline(
+    BuildContext dialogContext,
+    MedicationRequest request,
+    PharmacyViewModel viewModel,
+    String reason,
+  ) async {
+    if (reason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez indiquer une raison'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    Navigator.pop(dialogContext);
+    _showLoadingDialog();
+
+    try {
+      final result = await viewModel.respondToMedicationRequest(
+        requestId: request.id,
+        status: 'declined',
+        pharmacyMessage: reason,
+      );
+
+      if (mounted) Navigator.pop(context); // Close loading
+
+      if (mounted && result['success'] == true) {
+        await showPointsRewardPopup(
+          context: context,
+          type: RewardPopupType.declined,
+          pointsAwarded: 0,
+          reason: 'Aucun point pour les refus',
+          beforePoints: result['beforePoints'],
+          afterPoints: result['afterPoints'],
+          breakdown: ['0 points'],
+        );
+
+        if (mounted) {
+          viewModel.loadDashboard();
+          viewModel.refreshGamificationData();
+        }
+      } else if (mounted) {
+        _showErrorDialog(result['error'] ?? 'Une erreur est survenue');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) _showErrorDialog('Exception: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPER METHODS
+  // ─────────────────────────────────────────────────────────────
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Erreur'),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _buildBreakdownList(Map<String, dynamic> result) {
+    final list = <String>[];
+    if (result['basePoints'] != null) {
+      list.add('Base: +${result['basePoints']} points');
+    }
+    if (result['bonusPoints'] != null && result['bonusPoints'] > 0) {
+      list.add('Bonus rapidité: +${result['bonusPoints']} points');
+    }
+    return list;
+  }
+}
