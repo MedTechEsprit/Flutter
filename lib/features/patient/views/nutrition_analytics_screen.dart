@@ -4,14 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/patient/viewmodels/meal_viewmodel.dart';
-
-/// Dummy daily targets for comparison.
-class _DailyTargets {
-  static const double carbs = 250;
-  static const double protein = 80;
-  static const double fat = 65;
-  static const double calories = 2000;
-}
+import 'package:diab_care/features/patient/views/meal_logging_screen.dart';
 
 class NutritionAnalyticsScreen extends StatelessWidget {
   const NutritionAnalyticsScreen({super.key});
@@ -22,39 +15,51 @@ class NutritionAnalyticsScreen extends StatelessWidget {
     final (carbs, protein, fat, calories) = vm.dailyTotals;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundPrimary,
+      backgroundColor: AppColors.mintGreen,
       appBar: AppBar(
-        title: const Text('Nutrition Analytics'),
-        backgroundColor: AppColors.cardBackground,
+        title: const Text('My Dashboard'),
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _DailySummaryCard(
+          _CircularMacroCard(
             carbs: carbs,
             protein: protein,
             fat: fat,
             calories: calories,
           ),
-          const SizedBox(height: 20),
-          _MacroPieChartCard(carbs: carbs, protein: protein, fat: fat),
-          const SizedBox(height: 20),
-          _DailyCarbsBarChartCard(vm: vm),
+          const SizedBox(height: 24),
+          _ActivitiesCard(vm: vm),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MealLoggingScreen()),
+          );
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.add_rounded, color: AppColors.white),
       ),
     );
   }
 }
 
-class _DailySummaryCard extends StatelessWidget {
+class _CircularMacroCard extends StatelessWidget {
   final double carbs;
   final double protein;
   final double fat;
   final double calories;
 
-  const _DailySummaryCard({
+  const _CircularMacroCard({
     required this.carbs,
     required this.protein,
     required this.fat,
@@ -63,226 +68,241 @@ class _DailySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 0,
-      color: AppColors.cardBackground,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Today\'s Summary',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _SummaryRow(
-              label: 'Carbs',
-              value: carbs,
-              unit: 'g',
-              target: _DailyTargets.carbs,
-            ),
-            _SummaryRow(
-              label: 'Protein',
-              value: protein,
-              unit: 'g',
-              target: _DailyTargets.protein,
-            ),
-            _SummaryRow(
-              label: 'Fat',
-              value: fat,
-              unit: 'g',
-              target: _DailyTargets.fat,
-            ),
-            _SummaryRow(
-              label: 'Calories',
-              value: calories,
-              unit: 'kcal',
-              target: _DailyTargets.calories,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  final String label;
-  final double value;
-  final String unit;
-  final double target;
-
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.target,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final exceeded = value > target;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
-          Text(
-            '${value.toStringAsFixed(0)}$unit',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: exceeded ? AppColors.critical : AppColors.textPrimary,
-            ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 8),
-          Text(
-            '/ ${target.toInt()}$unit',
-            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-          ),
-          if (exceeded)
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: Text(
-                'Over',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.critical),
-              ),
-            ),
         ],
       ),
-    );
-  }
-}
-
-class _MacroPieChartCard extends StatelessWidget {
-  final double carbs;
-  final double protein;
-  final double fat;
-
-  const _MacroPieChartCard({
-    required this.carbs,
-    required this.protein,
-    required this.fat,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final total = carbs + protein + fat;
-    if (total <= 0) {
-      return Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 0,
-        color: AppColors.cardBackground,
-        child: const Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(
-            child: Text('Log meals to see macro breakdown', style: TextStyle(color: AppColors.textMuted)),
-          ),
-        ),
-      );
-    }
-
-    final sections = [
-      PieChartSectionData(
-        value: carbs,
-        title: '${(carbs / total * 100).toStringAsFixed(0)}%',
-        color: AppColors.primaryGreen,
-        radius: 60,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
-      ),
-      PieChartSectionData(
-        value: protein,
-        title: '${(protein / total * 100).toStringAsFixed(0)}%',
-        color: AppColors.accentBlue,
-        radius: 60,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
-      ),
-      PieChartSectionData(
-        value: fat,
-        title: '${(fat / total * 100).toStringAsFixed(0)}%',
-        color: AppColors.softOrange,
-        radius: 60,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
-      ),
-    ];
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 0,
-      color: AppColors.cardBackground,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Macro composition',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 180,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: PieChart(
-                      PieChartData(
-                        sections: sections,
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 36,
-                      ),
+      child: Column(
+        children: [
+          // Circular chart
+          SizedBox(
+            height: 200,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background circle
+                Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.background,
+                  ),
+                ),
+                // Pie chart
+                SizedBox(
+                  width: 180,
+                  height: 180,
+                  child: PieChart(
+                    PieChartData(
+                      sections: [
+                        PieChartSectionData(
+                          value: carbs,
+                          color: AppColors.darkGreen,
+                          radius: 60,
+                          title: '',
+                        ),
+                        PieChartSectionData(
+                          value: protein,
+                          color: AppColors.softOrange,
+                          radius: 60,
+                          title: '',
+                        ),
+                        PieChartSectionData(
+                          value: fat,
+                          color: AppColors.warningOrange,
+                          radius: 60,
+                          title: '',
+                        ),
+                      ],
+                      sectionsSpace: 0,
+                      centerSpaceRadius: 60,
                     ),
                   ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _LegendRow(color: AppColors.primaryGreen, label: 'Carbs'),
-                      _LegendRow(color: AppColors.accentBlue, label: 'Protein'),
-                      _LegendRow(color: AppColors.softOrange, label: 'Fat'),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                // Center text
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Total KCal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      calories.toInt().toString(),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LegendRow extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendRow({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          ),
+          const SizedBox(height: 24),
+          // Macro labels
+          _MacroRow(
+            color: AppColors.warningOrange,
+            label: 'Protein',
+            value: '${protein.toInt()}KCal',
+          ),
+          const SizedBox(height: 12),
+          _MacroRow(
+            color: AppColors.darkGreen,
+            label: 'Carbs',
+            value: '${carbs.toInt()}KCal',
+          ),
+          const SizedBox(height: 12),
+          _MacroRow(
+            color: AppColors.softOrange,
+            label: 'Fat',
+            value: '${fat.toInt()}KCal',
+          ),
         ],
       ),
     );
   }
 }
 
-class _DailyCarbsBarChartCard extends StatelessWidget {
+class _MacroRow extends StatelessWidget {
+  final Color color;
+  final String label;
+  final String value;
+
+  const _MacroRow({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActivitiesCard extends StatelessWidget {
   final MealViewModel vm;
 
-  const _DailyCarbsBarChartCard({required this.vm});
+  const _ActivitiesCard({required this.vm});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with dropdown
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Your Activities',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Last 7 day',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Line chart
+          SizedBox(
+            height: 200,
+            child: _ActivityLineChart(vm: vm),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityLineChart extends StatelessWidget {
+  final MealViewModel vm;
+
+  const _ActivityLineChart({required this.vm});
 
   @override
   Widget build(BuildContext context) {
@@ -290,6 +310,7 @@ class _DailyCarbsBarChartCard extends StatelessWidget {
     final days = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
     final spots = <FlSpot>[];
     final titles = <String>[];
+    
     for (var i = 0; i < days.length; i++) {
       final dayStart = DateTime(days[i].year, days[i].month, days[i].day);
       final dayMeals = vm.getMealsInRange(dayStart, dayStart);
@@ -300,82 +321,77 @@ class _DailyCarbsBarChartCard extends StatelessWidget {
 
     final maxY = spots.isEmpty ? 100.0 : (spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) + 20).clamp(50.0, 400.0);
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 0,
-      color: AppColors.cardBackground,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Daily carbs (last 7 days)',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxY,
-                  barTouchData: BarTouchData(enabled: true),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (v, meta) {
-                          final i = v.toInt();
-                          if (i < 0 || i >= titles.length) return const SizedBox.shrink();
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(titles[i], style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                          );
-                        },
-                        reservedSize: 28,
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 36,
-                        getTitlesWidget: (v, meta) => Text(
-                          '${v.toInt()}',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                        ),
-                      ),
-                    ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (v) => FlLine(color: AppColors.border, strokeWidth: 1),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: spots.asMap().entries.map((e) {
-                    return BarChartGroupData(
-                      x: e.key,
-                      barRods: [
-                        BarChartRodData(
-                          toY: e.value.y,
-                          color: AppColors.primaryGreen,
-                          width: 20,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                        ),
-                      ],
-                      showingTooltipIndicators: [],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ],
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: AppColors.border,
+            strokeWidth: 1,
+          ),
         ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                if (i < 0 || i >= titles.length) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    titles[i],
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              },
+              reservedSize: 28,
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: false,
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: AppColors.primaryGreen,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: AppColors.primaryGreen,
+                  strokeWidth: 2,
+                  strokeColor: AppColors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: AppColors.primaryGreen.withOpacity(0.1),
+            ),
+          ),
+        ],
+        minX: 0,
+        maxX: 6,
+        minY: 0,
+        maxY: maxY,
       ),
     );
   }
 }
+

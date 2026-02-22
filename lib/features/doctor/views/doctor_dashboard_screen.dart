@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:diab_care/core/theme/app_colors.dart';
+
 import 'patient_requests_screen.dart';
 
 class DoctorDashboardScreen extends StatelessWidget {

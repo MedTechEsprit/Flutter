@@ -8,6 +8,7 @@ import 'package:diab_care/features/patient/views/glucose_history_screen.dart';
 import 'package:diab_care/features/patient/views/find_doctors_screen.dart';
 import 'package:diab_care/features/patient/views/find_pharmacies_screen.dart';
 import 'package:diab_care/features/patient/views/patient_profile_screen.dart';
+import 'package:diab_care/features/patient/views/nutrition_main_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -21,6 +22,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   final List<Widget> _screens = const [
     GlucoseDashboardScreen(),
+    NutritionMainScreen(),
     GlucoseHistoryScreen(),
     FindDoctorsScreen(),
     FindPharmaciesScreen(),
@@ -52,10 +54,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(icon: Icons.dashboard_rounded, label: 'Accueil', isActive: _currentIndex == 0, onTap: () => setState(() => _currentIndex = 0)),
-                _NavItem(icon: Icons.history_rounded, label: 'Historique', isActive: _currentIndex == 1, onTap: () => setState(() => _currentIndex = 1)),
-                _NavItem(icon: Icons.medical_services_rounded, label: 'Médecins', isActive: _currentIndex == 2, onTap: () => setState(() => _currentIndex = 2)),
-                _NavItem(icon: Icons.local_pharmacy_rounded, label: 'Pharmacies', isActive: _currentIndex == 3, onTap: () => setState(() => _currentIndex = 3)),
-                _NavItem(icon: Icons.person_rounded, label: 'Profil', isActive: _currentIndex == 4, onTap: () => setState(() => _currentIndex = 4)),
+                _NavItem(icon: Icons.restaurant_rounded, label: 'Nutrition', isActive: _currentIndex == 1, onTap: () => setState(() => _currentIndex = 1)),
+                _NavItem(icon: Icons.history_rounded, label: 'Historique', isActive: _currentIndex == 2, onTap: () => setState(() => _currentIndex = 2)),
+                _NavItem(icon: Icons.medical_services_rounded, label: 'Médecins', isActive: _currentIndex == 3, onTap: () => setState(() => _currentIndex = 3)),
+                _NavItem(icon: Icons.local_pharmacy_rounded, label: 'Pharmacies', isActive: _currentIndex == 4, onTap: () => setState(() => _currentIndex = 4)),
+                _NavItem(icon: Icons.person_rounded, label: 'Profil', isActive: _currentIndex == 5, onTap: () => setState(() => _currentIndex = 5)),
               ],
             ),
           ),

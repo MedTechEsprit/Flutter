@@ -137,12 +137,16 @@ class _MealLoggingScreenState extends State<MealLoggingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundPrimary,
+      backgroundColor: AppColors.mintGreen,
       appBar: AppBar(
         title: Text(widget.editingEntry != null ? 'Edit Meal' : 'Log Meal'),
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -313,9 +317,24 @@ class _MealLoggingScreenState extends State<MealLoggingScreen> {
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: AppColors.secondaryBackground,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.errorRed)),
+      fillColor: AppColors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16), 
+        borderSide: BorderSide(color: AppColors.border)
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16), 
+        borderSide: BorderSide(color: AppColors.border)
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16), 
+        borderSide: const BorderSide(color: AppColors.primaryGreen, width: 2)
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16), 
+        borderSide: const BorderSide(color: AppColors.errorRed)
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 }
@@ -331,9 +350,15 @@ class _SectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: AppColors.shadowLight, blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: child,
     );

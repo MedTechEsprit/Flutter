@@ -37,12 +37,16 @@ class _MealHistoryScreenState extends State<MealHistoryScreen> {
     final grouped = vm.getMealsGroupedByDate(list);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundPrimary,
+      backgroundColor: AppColors.mintGreen,
       appBar: AppBar(
         title: const Text('Meal History'),
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [

@@ -9,7 +9,7 @@ import 'package:diab_care/features/patient/widgets/glucose_card.dart';
 import 'package:diab_care/features/patient/views/add_glucose_screen.dart';
 import 'package:diab_care/features/patient/views/statistics_screen.dart';
 import 'package:diab_care/features/patient/views/recommendations_screen.dart';
-import 'package:diab_care/features/patient/views/nutrition_screen.dart';
+
 import 'package:diab_care/features/patient/views/chat_screen.dart';
 
 class GlucoseDashboardScreen extends StatelessWidget {
@@ -132,8 +132,6 @@ class GlucoseDashboardScreen extends StatelessWidget {
                   Expanded(child: _ActionButton(icon: Icons.bar_chart_rounded, label: 'Mes\nstatistiques', color: AppColors.lightBlue, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsScreen())))),
                   const SizedBox(width: 12),
                   Expanded(child: _ActionButton(icon: Icons.lightbulb_outline, label: 'Conseils\npersonnalisés', color: AppColors.warmPeach, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecommendationsScreen())))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _ActionButton(icon: Icons.restaurant_rounded, label: 'Nutrition', color: AppColors.mintGreen, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen())))),
                 ],
               ),
             ),

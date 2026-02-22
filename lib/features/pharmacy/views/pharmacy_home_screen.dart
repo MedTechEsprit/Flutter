@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
-import 'package:diab_care/core/theme/app_text_styles.dart';
 import 'pharmacy_dashboard_screen.dart';
 import 'pharmacy_requests_screen.dart';
 import 'pharmacy_profile_screen.dart';

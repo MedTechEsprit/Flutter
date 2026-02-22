@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
-import 'package:diab_care/data/models/meal_entry_model.dart';
 import 'package:diab_care/features/patient/viewmodels/meal_viewmodel.dart';
 
 /// AI meal capture: camera placeholder, capture → show editable AI predictions + confidence, Confirm & Save.
@@ -15,6 +15,7 @@ class AIMealCaptureScreen extends StatefulWidget {
 class _AIMealCaptureScreenState extends State<AIMealCaptureScreen> {
   bool _captured = false;
   bool _simulating = false;
+  final ImagePicker _picker = ImagePicker();
 
   // Editable AI results (mock)
   final _carbsController = TextEditingController(text: '0');
@@ -34,20 +35,51 @@ class _AIMealCaptureScreenState extends State<AIMealCaptureScreen> {
     super.dispose();
   }
 
-  void _onCapture() {
-    setState(() => _simulating = true);
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (!mounted) return;
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (file == null || !mounted) return;
+      
       setState(() {
-        _simulating = false;
+        _simulating = true;
         _captured = true;
-        _carbsController.text = '42';
-        _proteinController.text = '18';
-        _fatController.text = '12';
-        _caloriesController.text = '285';
-        _confidence = 87;
       });
-    });
+      
+      // Simulate AI processing
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        setState(() {
+          _simulating = false;
+          _carbsController.text = '42';
+          _proteinController.text = '18';
+          _fatController.text = '12';
+          _caloriesController.text = '285';
+          _confidence = 87;
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+        setState(() => _simulating = false);
+      }
+    }
+  }
+
+  void _onCapture() {
+    _pickImage(ImageSource.camera);
+  }
+
+  void _onUpload() {
+    _pickImage(ImageSource.gallery);
   }
 
   void _confirmAndSave() {
@@ -94,12 +126,16 @@ class _AIMealCaptureScreenState extends State<AIMealCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundPrimary,
+      backgroundColor: AppColors.mintGreen,
       appBar: AppBar(
         title: const Text('AI Meal Capture'),
-        backgroundColor: AppColors.cardBackground,
+        backgroundColor: AppColors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [
@@ -138,17 +174,35 @@ class _AIMealCaptureScreenState extends State<AIMealCaptureScreen> {
                   ),
                   if (!_captured && !_simulating) ...[
                     const SizedBox(height: 24),
-                    Center(
-                      child: FilledButton.icon(
-                        onPressed: _onCapture,
-                        icon: const Icon(Icons.camera_rounded),
-                        label: const Text('Capture'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primaryGreen,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _onCapture,
+                            icon: const Icon(Icons.camera_rounded),
+                            label: const Text('Capture'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primaryGreen,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _onUpload,
+                            icon: const Icon(Icons.photo_library_rounded),
+                            label: const Text('Upload'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primaryGreen,
+                              side: BorderSide(color: AppColors.primaryGreen),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   if (_captured) ...[
