@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
-import 'package:diab_care/features/auth/services/auth_service.dart';
+import 'package:diab_care/core/services/token_service.dart';
 
 class BoostService {
-  final AuthService _authService = AuthService();
+  final TokenService _tokenService = TokenService();
 
   /// Activate a visibility boost
   /// POST /api/boost
@@ -17,8 +17,8 @@ class BoostService {
       debugPrint('⚡ ========== ACTIVATING BOOST ==========');
       debugPrint('⚡ Type: $boostType, Radius: $radiusKm km');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -56,7 +56,6 @@ class BoostService {
         };
       } else if (response.statusCode == 401) {
         debugPrint('❌ 401 - Session expirée');
-        await _authService.logout();
         return {
           'success': false,
           'message': 'Session expirée. Veuillez vous reconnecter.',
@@ -85,8 +84,8 @@ class BoostService {
     try {
       debugPrint('⚡ ========== FETCHING ACTIVE BOOSTS ==========');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -109,7 +108,6 @@ class BoostService {
         return data.map((json) => BoostModel.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
         debugPrint('❌ 401 - Session expirée');
-        await _authService.logout();
         throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         debugPrint('❌ Erreur ${response.statusCode}');

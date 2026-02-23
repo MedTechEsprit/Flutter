@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
+import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/patient_request_service.dart';
+import 'package:diab_care/features/chat/viewmodels/chat_viewmodel.dart';
+import 'package:diab_care/features/chat/views/chat_screen.dart';
 import 'doctor_dashboard_screen.dart';
 import 'patients_list_screen.dart';
 import 'appointments_screen.dart';
@@ -16,12 +21,41 @@ class DoctorHomeScreen extends StatefulWidget {
 
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   int _currentIndex = 0;
+  int _pendingRequestsCount = 0; // Dynamic count
+  final _tokenService = TokenService();
+  final _patientRequestService = PatientRequestService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingRequestsCount();
+    // Load chat conversations for the doctor
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ChatViewModel>().loadConversations();
+      }
+    });
+  }
+
+  Future<void> _loadPendingRequestsCount() async {
+    try {
+      final doctorId = await _tokenService.getUserId();
+      if (doctorId != null) {
+        final requests = await _patientRequestService.getPatientRequests(doctorId);
+        setState(() {
+          _pendingRequestsCount = requests.where((r) => r.isPending).length;
+        });
+      }
+    } catch (_) {
+      // Silent fail - keep count at 0
+    }
+  }
 
   final List<Widget> _screens = const [
     DoctorDashboardScreen(),
     PatientsListScreen(),
+    ConversationListScreen(isDoctor: true),
     AppointmentsScreen(),
-    NotificationsScreen(),
     DoctorProfileScreen(),
   ];
 
@@ -70,85 +104,53 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.person_add_alt_1),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const PatientRequestsScreen(),
                     ),
                   );
+                  // Refresh count after returning from screen
+                  _loadPendingRequestsCount();
                 },
               ),
               Positioned(
                 right: 8,
                 top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.softOrange,
-                        AppColors.softOrange.withOpacity(0.8),
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.softOrange.withOpacity(0.5),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  child: const Text(
-                    '5',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {
-                  setState(() {
-                    _currentIndex = 3;
-                  });
-                },
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: AppColors.softOrange,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+                child: _pendingRequestsCount > 0
+                    ? Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.softOrange,
+                              AppColors.softOrange.withOpacity(0.8),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.softOrange.withOpacity(0.5),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          '$_pendingRequestsCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),
@@ -183,8 +185,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               children: [
                 _buildNavItem(0, Icons.dashboard_outlined, Icons.dashboard, 'Dashboard', const Color(0xFF7DDAB9)),
                 _buildNavItem(1, Icons.people_outline, Icons.people, 'Patients', const Color(0xFF9BC4E2)),
-                _buildNavItem(2, Icons.calendar_today_outlined, Icons.calendar_today, 'Schedule', const Color(0xFFB794F4)),
-                _buildNavItem(3, Icons.notifications_outlined, Icons.notifications, 'Alerts', const Color(0xFFFFB347), badge: 2),
+                _buildDoctorChatNavItem(2, const Color(0xFF7DDAB9)),
+                _buildNavItem(3, Icons.calendar_today_outlined, Icons.calendar_today, 'Schedule', const Color(0xFFB794F4)),
                 _buildNavItem(4, Icons.person_outline, Icons.person, 'Profile', const Color(0xFF7DDAB9)),
               ],
             ),
@@ -267,6 +269,77 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Special nav item for Messages that reads unread count from ChatViewModel.
+  Widget _buildDoctorChatNavItem(int index, Color color) {
+    final isSelected = _currentIndex == index;
+
+    return Consumer<ChatViewModel>(
+      builder: (context, chatVM, _) {
+        final badge = chatVM.totalUnread;
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(
+              horizontal: isSelected ? 16 : 12,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  children: [
+                    Icon(
+                      isSelected ? Icons.chat_bubble : Icons.chat_bubble_outline,
+                      color: isSelected ? color : const Color(0xFFA0AEC0),
+                      size: 24,
+                    ),
+                    if (badge > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF6B6B), Color(0xFFFC5252)],
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            badge.toString(),
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    'Messages',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

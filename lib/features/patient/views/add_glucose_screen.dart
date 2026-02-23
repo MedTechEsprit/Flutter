@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/data/models/glucose_reading_model.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
-
+import 'package:uuid/uuid.dart';
 
 class AddGlucoseScreen extends StatefulWidget {
   const AddGlucoseScreen({super.key});
@@ -19,7 +19,6 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
   bool _isConnecting = false;
   bool _isConnected = false;
   double? _glucometerValue;
-  bool _isSaving = false;
 
   final _types = [
     {'key': 'fasting', 'label': 'À jeun', 'icon': Icons.wb_sunny_outlined},
@@ -42,70 +41,42 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
     super.dispose();
   }
 
-  Future<void> _saveManualReading() async {
+  void _saveManualReading() {
     final value = double.tryParse(_valueController.text);
     if (value == null || value <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez entrer une valeur valide')));
       return;
     }
-
-    setState(() => _isSaving = true);
-
     final reading = GlucoseReading(
-      id: '',
-      patientId: '',
+      id: const Uuid().v4(),
+      patientId: 'P001',
       value: value,
       timestamp: DateTime.now(),
       type: _selectedType,
       source: 'manual',
     );
-
-    final success = await context.read<GlucoseViewModel>().addReading(reading);
-
-    if (mounted) {
-      setState(() => _isSaving = false);
-      if (success) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Mesure enregistrée avec succès'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: ${context.read<GlucoseViewModel>().error ?? "Échec de l\'enregistrement"}'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        );
-      }
-    }
+    context.read<GlucoseViewModel>().addReading(reading);
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: const Text('Mesure enregistrée avec succès'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+    );
   }
 
-  Future<void> _saveGlucometerReading() async {
+  void _saveGlucometerReading() {
     if (_glucometerValue == null) return;
-
-    setState(() => _isSaving = true);
-
     final reading = GlucoseReading(
-      id: '',
-      patientId: '',
+      id: const Uuid().v4(),
+      patientId: 'P001',
       value: _glucometerValue!,
       timestamp: DateTime.now(),
       type: _selectedType,
       source: 'glucometer',
     );
-
-    final success = await context.read<GlucoseViewModel>().addReading(reading);
-
-    if (mounted) {
-      setState(() => _isSaving = false);
-      if (success) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Mesure du glucomètre enregistrée'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Erreur lors de l\'enregistrement'), backgroundColor: Colors.red),
-        );
-      }
-    }
+    context.read<GlucoseViewModel>().addReading(reading);
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: const Text('Mesure du glucomètre enregistrée'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+    );
   }
 
   Future<void> _simulateGlucometerConnection() async {
@@ -234,9 +205,9 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
-              onPressed: _isSaving ? null : _saveManualReading,
-              icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save_rounded),
-              label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              onPressed: _saveManualReading,
+              icon: const Icon(Icons.save_rounded),
+              label: const Text('Enregistrer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.softGreen,
                 foregroundColor: Colors.white,
@@ -367,9 +338,9 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: _isSaving ? null : _saveGlucometerReading,
-                icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save_rounded),
-                label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer la mesure', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                onPressed: _saveGlucometerReading,
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Enregistrer la mesure', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.softGreen,
                   foregroundColor: Colors.white,

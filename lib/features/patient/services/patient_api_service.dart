@@ -8,8 +8,8 @@ import 'package:diab_care/features/auth/services/auth_service.dart';
 class PatientApiService {
   final AuthService _authService = AuthService();
 
-  // Utilise la même baseUrl que AuthService
-  String get baseUrl => AuthService.baseUrl;
+  // Utilise la même baseUrl que AuthService + préfixe /api
+  String get baseUrl => '${AuthService.baseUrl}/api';
 
   /// Headers avec token JWT
   Future<Map<String, String>> get _authHeaders async {

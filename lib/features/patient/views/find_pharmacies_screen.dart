@@ -56,12 +56,7 @@ class _FindPharmaciesScreenState extends State<FindPharmaciesScreen> {
               ),
             ),
           ),
-          if (vm.isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(color: AppColors.softGreen)),
-            )
-          else
-            SliverPadding(
+          SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: pharmacies.isEmpty
                 ? const SliverFillRemaining(child: Center(child: Text('Aucune pharmacie trouvée', style: TextStyle(color: AppColors.textMuted))))

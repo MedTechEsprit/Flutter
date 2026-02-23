@@ -3,11 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
+import 'package:diab_care/features/patient/viewmodels/meal_viewmodel.dart';
+import 'package:diab_care/features/chat/viewmodels/chat_viewmodel.dart';
 import 'package:diab_care/features/patient/views/glucose_dashboard_screen.dart';
+// ignore: unused_import
 import 'package:diab_care/features/patient/views/glucose_history_screen.dart';
 import 'package:diab_care/features/patient/views/find_doctors_screen.dart';
 import 'package:diab_care/features/patient/views/find_pharmacies_screen.dart';
 import 'package:diab_care/features/patient/views/patient_profile_screen.dart';
+import 'package:diab_care/features/patient/views/nutrition/nutrition_main_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -21,7 +25,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   final List<Widget> _screens = const [
     GlucoseDashboardScreen(),
-    GlucoseHistoryScreen(),
+    NutritionMainScreen(),
     FindDoctorsScreen(),
     FindPharmaciesScreen(),
     PatientProfileScreen(),
@@ -31,16 +35,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      context.read<GlucoseViewModel>().loadReadings();
+      context.read<PatientViewModel>().loadPatientData();
+      context.read<MealViewModel>().loadMeals();
+      context.read<ChatViewModel>().loadConversations();
     });
-  }
-
-  Future<void> _loadData() async {
-    // Charger les données en parallèle depuis l'API
-    await Future.wait([
-      context.read<GlucoseViewModel>().loadReadings(),
-      context.read<PatientViewModel>().loadPatientData(),
-    ]);
   }
 
   @override
@@ -59,7 +58,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(icon: Icons.dashboard_rounded, label: 'Accueil', isActive: _currentIndex == 0, onTap: () => setState(() => _currentIndex = 0)),
-                _NavItem(icon: Icons.history_rounded, label: 'Historique', isActive: _currentIndex == 1, onTap: () => setState(() => _currentIndex = 1)),
+                _NavItem(icon: Icons.restaurant_rounded, label: 'Nutrition', isActive: _currentIndex == 1, onTap: () => setState(() => _currentIndex = 1)),
                 _NavItem(icon: Icons.medical_services_rounded, label: 'Médecins', isActive: _currentIndex == 2, onTap: () => setState(() => _currentIndex = 2)),
                 _NavItem(icon: Icons.local_pharmacy_rounded, label: 'Pharmacies', isActive: _currentIndex == 3, onTap: () => setState(() => _currentIndex = 3)),
                 _NavItem(icon: Icons.person_rounded, label: 'Profil', isActive: _currentIndex == 4, onTap: () => setState(() => _currentIndex = 4)),

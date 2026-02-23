@@ -1,9 +1,87 @@
 import 'package:flutter/material.dart';
-import 'package:diab_care/core/theme/app_colors.dart';
+import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/appointment_service.dart';
+import 'package:diab_care/data/services/patient_request_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'patient_requests_screen.dart';
 
-class DoctorDashboardScreen extends StatelessWidget {
+class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
+
+  @override
+  State<DoctorDashboardScreen> createState() => _DoctorDashboardScreenState();
+}
+
+class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
+  final _tokenService = TokenService();
+  final _appointmentService = AppointmentService();
+  final _patientRequestService = PatientRequestService(); // NEW
+
+  String _doctorName = '';
+  String _doctorSpecialite = '';
+  int _totalAppointments = 0;
+  int _pendingCount = 0;
+  int _confirmedCount = 0;
+  int _completedCount = 0;
+  int _pendingRequestsCount = 0; // NEW: Patient requests count
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoctorData();
+  }
+
+  Future<void> _loadDoctorData() async {
+    try {
+      final doctorId = await _tokenService.getUserId();
+      final token = await _tokenService.getToken();
+
+      if (doctorId == null || token == null) return;
+
+      // Fetch doctor profile
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:3000/api/medecins/$doctorId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _doctorName = '${data['prenom'] ?? ''} ${data['nom'] ?? ''}'.trim();
+          _doctorSpecialite = data['specialite'] ?? '';
+        });
+      }
+
+      // Fetch appointment stats
+      try {
+        final stats = await _appointmentService.getDoctorStats(doctorId);
+        setState(() {
+          _totalAppointments = stats.total;
+          _pendingCount = stats.pendingCount;
+          _confirmedCount = stats.confirmedCount;
+          _completedCount = stats.completedCount;
+        });
+      } catch (_) {}
+
+      // Fetch patient requests count
+      try {
+        final requests = await _patientRequestService.getPatientRequests(doctorId);
+        setState(() {
+          _pendingRequestsCount = requests.where((r) => r.isPending).length;
+        });
+      } catch (_) {}
+
+      setState(() => _isLoading = false);
+    } catch (e) {
+      print('❌ Error loading doctor data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +91,7 @@ class DoctorDashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Gradient Header
+            // Gradient Header with Greeting
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
@@ -32,79 +110,14 @@ class DoctorDashboardScreen extends StatelessWidget {
               ),
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Top Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.local_hospital, color: Colors.white),
-                              ),
-                              const SizedBox(width: 12),
-                              const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'DiabCare',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Professional',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Stack(
-                              children: [
-                                const Icon(Icons.notifications_outlined, color: Colors.white),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFFF6B6B),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
                       // Greeting
-                      const Text(
-                        'Hello Dr. Sarah 👋',
-                        style: TextStyle(
+                      Text(
+                        _isLoading ? 'Loading...' : 'Hello Dr. $_doctorName 👋',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -112,9 +125,11 @@ class DoctorDashboardScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Here\'s how your patients are doing today!',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                        _doctorSpecialite.isNotEmpty
+                            ? _doctorSpecialite
+                            : 'Here\'s how your patients are doing today!',
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 15,
                         ),
                       ),
@@ -124,255 +139,261 @@ class DoctorDashboardScreen extends StatelessWidget {
               ),
             ),
 
-            // Content
+            // Content with padding
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Patient Requests Banner
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFB347), Color(0xFFFF9500)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFB347).withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFB347), Color(0xFFFF9500)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFB347).withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 6),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(14),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.person_add_alt_1,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'New Patient Requests',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.person_add_alt_1,
-                            color: Colors.white,
-                            size: 28,
+                          const SizedBox(height: 4),
+                          Text(
+                            _isLoading
+                                ? 'Loading...'
+                                : _pendingRequestsCount == 0
+                                    ? 'No pending requests'
+                                    : '$_pendingRequestsCount patient${_pendingRequestsCount == 1 ? "" : "s"} waiting for approval',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PatientRequestsScreen(),
+                          ),
+                        );
+                        // Refresh data after returning from patient requests
+                        _loadDoctorData();
+                      },
+                      icon: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Stats Grid
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildColorfulStatCard(
+                      '$_pendingCount',
+                      'Pending',
+                      Icons.hourglass_empty,
+                      const Color(0xFFFFB347),
+                      const Color(0xFFFF9500),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildColorfulStatCard(
+                      '$_totalAppointments',
+                      'Appointments',
+                      Icons.calendar_today_outlined,
+                      const Color(0xFF9BC4E2),
+                      const Color(0xFF7AB3D6),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildColorfulStatCard(
+                      '$_confirmedCount',
+                      'Confirmed',
+                      Icons.check_circle_outline,
+                      const Color(0xFF7DDAB9),
+                      const Color(0xFF5BC4A8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildColorfulStatCard(
+                      '$_completedCount',
+                      'Completed',
+                      Icons.done_all,
+                      const Color(0xFFB794F4),
+                      const Color(0xFF9F7AEA),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Population Trends Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Patient Trends',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D3748),
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7DDAB9).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
                             children: [
+                              Icon(Icons.trending_up, size: 16, color: Color(0xFF7DDAB9)),
+                              SizedBox(width: 4),
                               Text(
-                                'New Patient Requests',
+                                '+12%',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                                  color: Color(0xFF7DDAB9),
                                   fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                '5 patients waiting for approval',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PatientRequestsScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.arrow_forward_ios,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Stats Grid
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildColorfulStatCard(
-                          '248',
-                          'Total Patients',
-                          Icons.people_outline,
-                          const Color(0xFF7DDAB9),
-                          const Color(0xFF5BC4A8),
+                    const SizedBox(height: 20),
+                    Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFF7DDAB9).withOpacity(0.2),
+                            const Color(0xFF7DDAB9).withOpacity(0.05),
+                          ],
                         ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildColorfulStatCard(
-                          '12',
-                          'Appointments',
-                          Icons.calendar_today_outlined,
-                          const Color(0xFF9BC4E2),
-                          const Color(0xFF7AB3D6),
-                        ),
+                      child: const Center(
+                        child: Icon(Icons.show_chart, size: 48, color: Color(0xFF7DDAB9)),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildColorfulStatCard(
-                          '28',
-                          'Active Today',
-                          Icons.trending_up,
-                          const Color(0xFFB794F4),
-                          const Color(0xFF9F7AEA),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildColorfulStatCard(
-                          '3',
-                          'Alerts',
-                          Icons.warning_amber_rounded,
-                          const Color(0xFFFF6B6B),
-                          const Color(0xFFFC5252),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Population Trends Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Patient Trends',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2D3748),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF7DDAB9).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.trending_up, size: 16, color: Color(0xFF7DDAB9)),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '+12%',
-                                    style: TextStyle(
-                                      color: Color(0xFF7DDAB9),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          height: 120,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                const Color(0xFF7DDAB9).withOpacity(0.2),
-                                const Color(0xFF7DDAB9).withOpacity(0.05),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.show_chart, size: 48, color: Color(0xFF7DDAB9)),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildTrendItem('In Range', '75%', const Color(0xFF7DDAB9)),
-                            _buildTrendItem('Above', '18%', const Color(0xFFFFB347)),
-                            _buildTrendItem('Below', '7%', const Color(0xFFFF6B6B)),
-                          ],
-                        ),
+                        _buildTrendItem('In Range', '75%', const Color(0xFF7DDAB9)),
+                        _buildTrendItem('Above', '18%', const Color(0xFFFFB347)),
+                        _buildTrendItem('Below', '7%', const Color(0xFFFF6B6B)),
                       ],
                     ),
-                  ),
+                  ],
+                ),
+              ),
 
-                  const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-                  // Critical Alerts Section
-                  const Text(
-                    'Critical Alerts',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D3748),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+              // Critical Alerts Section
+              const Text(
+                'Critical Alerts',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3748),
+                ),
+              ),
+              const SizedBox(height: 16),
 
-                  _buildAlertCard(
-                    'John Doe',
-                    'High Glucose: 280 mg/dL',
-                    '10 mins ago',
-                    const Color(0xFFFF6B6B),
-                    Icons.warning_rounded,
-                  ),
-                  _buildAlertCard(
-                    'Mary Smith',
-                    'Missed medication dose',
-                    '30 mins ago',
-                    const Color(0xFFFFB347),
-                    Icons.medication,
-                  ),
-                  _buildAlertCard(
-                    'James Wilson',
-                    'Appointment in 1 hour',
-                    '1 hour ago',
-                    const Color(0xFF9BC4E2),
-                    Icons.calendar_today,
-                  ),
+              _buildAlertCard(
+                'John Doe',
+                'High Glucose: 280 mg/dL',
+                '10 mins ago',
+                const Color(0xFFFF6B6B),
+                Icons.warning_rounded,
+              ),
+              _buildAlertCard(
+                'Mary Smith',
+                'Missed medication dose',
+                '30 mins ago',
+                const Color(0xFFFFB347),
+                Icons.medication,
+              ),
+              _buildAlertCard(
+                'James Wilson',
+                'Appointment in 1 hour',
+                '1 hour ago',
+                const Color(0xFF9BC4E2),
+                Icons.calendar_today,
+              ),
 
-                  const SizedBox(height: 30),
+              const SizedBox(height: 30),
                 ],
               ),
             ),

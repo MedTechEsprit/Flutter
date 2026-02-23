@@ -4,6 +4,7 @@ import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/app_text_styles.dart';
 import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
 import 'package:diab_care/features/pharmacy/widgets/boost_management_widget.dart';
+// ignore: unused_import
 import 'package:diab_care/data/models/pharmacy_models.dart';
 
 class PharmacyDashboardScreen extends StatefulWidget {
@@ -157,21 +158,17 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  // App Bar Moderne avec gradient
+  // App Bar Moderne avec gradient (EXACT COMME PATIENT!)
   Widget _buildModernAppBar(String pharmacyName, int points, String badgeLevel, bool isOnline) {
     return SliverAppBar(
       expandedHeight: 140,
       floating: false,
       pinned: true,
-      backgroundColor: AppColors.primaryGreen,
+      backgroundColor: const Color(0xFF7DDAB9),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
-            ),
+            gradient: AppColors.mainGradient,
           ),
           child: SafeArea(
             child: Padding(
@@ -196,28 +193,20 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
+                              'Bonjour,',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
                               pharmacyName,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 20,
+                                fontSize: 22,
                               ),
-                            ),
-                            Row(
-                              children: [
-                                Text(
-                                  _getBadgeEmoji(badgeLevel),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$points pts',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),
@@ -276,56 +265,56 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  // Grille de statistiques principales
+  // Grille de statistiques principales (style patient - couleurs pastels douces)
   Widget _buildMainStatsGrid(int total, int pending, int accepted, int declined, int points, double revenue) {
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _buildStatCard('📥', '$total', 'Total', const Color(0xFFE3F2FD), const Color(0xFF1976D2))),
+            Expanded(child: _buildStatCard('📥', '$total', 'Total', const Color(0xFFE0F7FA), const Color(0xFF00ACC1))),
             const SizedBox(width: 10),
-            Expanded(child: _buildStatCard('⏳', '$pending', 'En attente', const Color(0xFFFFF3E0), const Color(0xFFFF9800))),
+            Expanded(child: _buildStatCard('⏳', '$pending', 'En attente', const Color(0xFFFFF9E6), const Color(0xFFFFA726))),
             const SizedBox(width: 10),
-            Expanded(child: _buildStatCard('✅', '$accepted', 'Acceptées', const Color(0xFFE8F5E9), const Color(0xFF4CAF50))),
+            Expanded(child: _buildStatCard('✅', '$accepted', 'Acceptées', const Color(0xFFE8F5E9), const Color(0xFF66BB6A))),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _buildStatCard('❌', '$declined', 'Refusées', const Color(0xFFFFEBEE), const Color(0xFFF44336))),
+            Expanded(child: _buildStatCard('❌', '$declined', 'Refusées', const Color(0xFFFFEBEE), const Color(0xFFEF5350))),
             const SizedBox(width: 10),
-            Expanded(child: _buildStatCard('🎯', '$points', 'Points', const Color(0xFFFFFDE7), const Color(0xFFFFC107))),
+            Expanded(child: _buildStatCard('🎯', '$points', 'Points', const Color(0xFFE1F5FE), const Color(0xFF29B6F6))),
             const SizedBox(width: 10),
-            Expanded(child: _buildStatCard('💰', '${revenue.toStringAsFixed(0)}', 'TND', const Color(0xFFE8F5E9), const Color(0xFF388E3C))),
+            Expanded(child: _buildStatCard('💰', '${revenue.toStringAsFixed(0)}', 'TND', const Color(0xFFF3E5F5), const Color(0xFFAB47BC))),
           ],
         ),
       ],
     );
   }
 
-  // Carte de statistique
+  // Carte de statistique (STYLE PATIENT - blanc avec ombre douce)
   Widget _buildStatCard(String emoji, String value, String label, Color bgColor, Color accentColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 28)),
+          Text(emoji, style: const TextStyle(fontSize: 24)),
           const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: accentColor,
             ),
@@ -333,9 +322,9 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
-              color: accentColor.withOpacity(0.8),
+              color: AppColors.textMuted,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -843,6 +832,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   }
 
   // Helpers
+  // ignore: unused_element
   String _getBadgeEmoji(String badgeLevel) {
     switch (badgeLevel.toLowerCase()) {
       case 'silver': return '🥈';

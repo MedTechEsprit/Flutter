@@ -9,7 +9,8 @@ import 'package:diab_care/features/patient/widgets/glucose_card.dart';
 import 'package:diab_care/features/patient/views/add_glucose_screen.dart';
 import 'package:diab_care/features/patient/views/statistics_screen.dart';
 import 'package:diab_care/features/patient/views/recommendations_screen.dart';
-import 'package:diab_care/features/patient/views/chat_screen.dart';
+import 'package:diab_care/features/chat/views/chat_screen.dart';
+import 'package:diab_care/features/chat/viewmodels/chat_viewmodel.dart';
 
 class GlucoseDashboardScreen extends StatelessWidget {
   const GlucoseDashboardScreen({super.key});
@@ -49,10 +50,12 @@ class GlucoseDashboardScreen extends StatelessWidget {
                           ),
                           Row(
                             children: [
-                              _HeaderButton(
-                                icon: Icons.message_rounded,
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen())),
-                                badge: patientVM.conversations.where((c) => c.unreadCount > 0).length,
+                              Consumer<ChatViewModel>(
+                                builder: (context, chatVM, _) => _HeaderButton(
+                                  icon: Icons.message_rounded,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConversationListScreen())),
+                                  badge: chatVM.totalUnread,
+                                ),
                               ),
                               const SizedBox(width: 8),
                               _HeaderButton(icon: Icons.notifications_rounded, onTap: () {}),
@@ -146,7 +149,7 @@ class GlucoseDashboardScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(child: _StatMiniCard(label: 'Temps cible', value: '${glucoseVM.timeInRange.toInt()}', unit: '%', color: AppColors.lightBlue)),
                   const SizedBox(width: 10),
-                  Expanded(child: _StatMiniCard(label: 'HbA1c', value: '${glucoseVM.estimatedHba1c?.toStringAsFixed(1) ?? patient?.hba1c ?? '-'}', unit: '%', color: AppColors.lavender)),
+                  Expanded(child: _StatMiniCard(label: 'HbA1c', value: '${patient?.hba1c ?? '-'}', unit: '%', color: AppColors.lavender)),
                 ],
               ),
             ),

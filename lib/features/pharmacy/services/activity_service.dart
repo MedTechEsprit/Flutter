@@ -1,11 +1,11 @@
- import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
-import 'package:diab_care/features/auth/services/auth_service.dart';
+import 'package:diab_care/core/services/token_service.dart';
 
 class ActivityService {
-  final AuthService _authService = AuthService();
+  final TokenService _tokenService = TokenService();
 
   /// Get activity feed for pharmacy
   /// GET /api/activities/pharmacy/{pharmacyId}/feed
@@ -13,8 +13,8 @@ class ActivityService {
     try {
       debugPrint('📋 ========== FETCHING ACTIVITY FEED ==========');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -36,7 +36,6 @@ class ActivityService {
         return data.map((json) => ActivityModel.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
         debugPrint('❌ 401 - Session expirée');
-        await _authService.logout();
         throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         debugPrint('❌ Erreur ${response.statusCode}');

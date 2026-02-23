@@ -2,26 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/theme_provider.dart';
+import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
-import 'package:diab_care/features/auth/services/auth_service.dart';
 
 class PatientProfileScreen extends StatelessWidget {
   const PatientProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final patientVM = context.watch<PatientViewModel>();
-    final patient = patientVM.patient;
+    final patient = context.watch<PatientViewModel>().patient;
     final glucoseVM = context.watch<GlucoseViewModel>();
     final themeProvider = context.watch<ThemeProvider>();
-
-    if (patientVM.isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.backgroundPrimary,
-        body: Center(child: CircularProgressIndicator(color: AppColors.softGreen)),
-      );
-    }
 
     return Scaffold(
       backgroundColor: AppColors.backgroundPrimary,
@@ -38,7 +30,7 @@ class PatientProfileScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 40,
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         child: Text(
                           patient != null ? patient.name.split(' ').map((n) => n[0]).take(2).join() : 'P',
                           style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
@@ -47,7 +39,7 @@ class PatientProfileScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(patient?.name ?? 'Patient', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                       const SizedBox(height: 4),
-                      Text(patient?.email ?? '', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
+                      Text(patient?.email ?? '', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8))),
                     ],
                   ),
                 ),
@@ -66,14 +58,14 @@ class PatientProfileScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
                     child: Column(
                       children: [
                         _InfoRow(label: 'Type de diabète', value: patient?.diabetesType ?? '-'),
                         const Divider(height: 20),
                         _InfoRow(label: 'Groupe sanguin', value: patient?.bloodType ?? '-'),
                         const Divider(height: 20),
-                        _InfoRow(label: 'HbA1c', value: '${glucoseVM.estimatedHba1c?.toStringAsFixed(1) ?? patient?.hba1c ?? '-'}%'),
+                        _InfoRow(label: 'HbA1c', value: '${patient?.hba1c ?? '-'}%'),
                         const Divider(height: 20),
                         _InfoRow(label: 'IMC', value: '${patient?.bmi ?? '-'}'),
                         const Divider(height: 20),
@@ -104,7 +96,7 @@ class PatientProfileScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
                     child: Column(
                       children: [
                         _InfoRow(label: 'Téléphone', value: patient?.phone ?? '-'),
@@ -122,7 +114,7 @@ class PatientProfileScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
                     child: Column(
                       children: [
                         SwitchListTile(
@@ -130,7 +122,13 @@ class PatientProfileScreen extends StatelessWidget {
                           secondary: const Icon(Icons.dark_mode_outlined),
                           value: themeProvider.isDarkMode,
                           onChanged: (_) => themeProvider.toggleTheme(),
-                          activeColor: AppColors.softGreen,
+                          activeTrackColor: AppColors.softGreen.withValues(alpha: 0.5),
+                          thumbColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                              return AppColors.softGreen;
+                            }
+                            return null;
+                          }),
                         ),
                         const Divider(height: 1),
                         ListTile(
@@ -155,11 +153,9 @@ class PatientProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await AuthService().logout();
-                        if (context.mounted) {
-                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-                        }
+                      onPressed: () {
+                        context.read<AuthViewModel>().logout();
+                        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
                       },
                       icon: const Icon(Icons.logout),
                       label: const Text('Se déconnecter'),
@@ -221,7 +217,7 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
       child: Column(
         children: [
           Icon(icon, color: color, size: 22),

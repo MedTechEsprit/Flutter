@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
-import 'package:diab_care/features/auth/services/auth_service.dart';
+import 'package:diab_care/core/services/token_service.dart';
 
 class MedicationRequestService {
-  final AuthService _authService = AuthService();
+  final TokenService _tokenService = TokenService();
 
   /// Fetch pending requests for current pharmacy
   /// GET /medication-request/pharmacy/{pharmacyId}/pending
@@ -14,8 +14,8 @@ class MedicationRequestService {
     try {
       debugPrint('📋 ========== FETCHING PENDING REQUESTS ==========');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       debugPrint('🔑 Token: ${token != null ? "OK (${token.length} chars)" : "NULL"}');
       debugPrint('🆔 PharmacyId: $pharmacyId');
@@ -51,7 +51,6 @@ class MedicationRequestService {
         return requests;
       } else if (response.statusCode == 401) {
         debugPrint('❌ 401 Unauthorized - Token expiré');
-        await _authService.logout();
         throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         debugPrint('❌ Erreur ${response.statusCode}');
@@ -77,8 +76,8 @@ class MedicationRequestService {
       debugPrint('📋 ========== FETCHING REQUEST HISTORY ==========');
       debugPrint('📋 Status filter: $status');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       debugPrint('🔑 Token: ${token != null ? "OK" : "NULL"}');
       debugPrint('🆔 PharmacyId: $pharmacyId');
@@ -148,7 +147,6 @@ class MedicationRequestService {
         return requests;
       } else if (response.statusCode == 401) {
         debugPrint('❌ 401 - Session expirée');
-        await _authService.logout();
         throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         debugPrint('❌ Erreur ${response.statusCode}');
@@ -171,8 +169,8 @@ class MedicationRequestService {
     DateTime? pickupDeadline,
   }) async {
     try {
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -206,7 +204,6 @@ class MedicationRequestService {
           'message': error['message'] ?? 'Cette demande a expiré',
         };
       } else if (response.statusCode == 401) {
-        await _authService.logout();
         return {
           'success': false,
           'message': 'Session expirée. Veuillez vous reconnecter.',
@@ -236,7 +233,7 @@ class MedicationRequestService {
   /// PUT /medication-request/{requestId}/pickup
   Future<Map<String, dynamic>> markAsPickedUp(String requestId) async {
     try {
-      final token = await _authService.getToken();
+      final token = await _tokenService.getToken();
 
       if (token == null) {
         throw Exception('Non authentifié');
@@ -253,7 +250,7 @@ class MedicationRequestService {
           'data': jsonDecode(response.body),
         };
       } else if (response.statusCode == 401) {
-        await _authService.logout();
+        await _tokenService.clearAuthData();
         return {
           'success': false,
           'message': 'Session expirée',

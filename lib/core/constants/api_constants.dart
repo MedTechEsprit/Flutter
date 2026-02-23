@@ -9,8 +9,8 @@ class ApiConstants {
   static String get baseUrl {
     // Détection automatique de la plateforme
     if (Platform.isAndroid) {
-      // IP locale du PC pour test sur téléphone physique
-      return 'http://174.20.1.16:3000/api';
+      // 10.0.2.2 est l'alias pour localhost sur l'émulateur Android
+      return 'http://10.0.2.2:3000/api';
     } else {
       // iOS simulator ou desktop peut utiliser localhost
       return 'http://localhost:3000/api';
@@ -22,36 +22,6 @@ class ApiConstants {
 
   // Authentication Endpoints
   static const String login = '/auth/login';
-  static const String profile = '/auth/profile';
-
-  // Patient Endpoints
-  static const String patients = '/patients';
-  static String patientById(String id) => '/patients/$id';
-
-  // Glucose Endpoints
-  static const String glucose = '/glucose';
-  static const String glucoseMyRecords = '/glucose/my-records';
-  static String glucoseDateRange(String start, String end) => '/glucose/range?startDate=$start&endDate=$end';
-  static const String glucoseWeeklyStats = '/glucose/stats/weekly';
-  static const String glucoseMonthlyStats = '/glucose/stats/monthly';
-  static const String glucoseDailyAverages = '/glucose/stats/daily-averages';
-  static const String glucoseAlerts = '/glucose/alerts';
-  static const String glucoseEstimatedHba1c = '/glucose/stats/estimated-hba1c';
-  static const String glucoseTimeInRange = '/glucose/stats/time-in-range';
-  static String glucoseDelete(String id) => '/glucose/$id';
-
-  // Medecin Endpoints
-  static const String medecins = '/medecins';
-  static String medecinById(String id) => '/medecins/$id';
-  static String rateMedecin(String id) => '/medecins/$id/noter';
-
-  // Pharmacien Endpoints
-  static const String pharmaciens = '/pharmaciens';
-  static String pharmacienById(String id) => '/pharmaciens/$id';
-
-  // Nutrition Endpoints
-  static const String meals = '/nutrition/meals';
-  static const String dailyCarbs = '/nutrition/daily-carbs';
 
   // Medication Requests Endpoints
   static String pendingRequests(String pharmacyId) => '/medication-request/pharmacy/$pharmacyId/pending';
@@ -72,6 +42,13 @@ class ApiConstants {
 
   // Boost
   static String activeBoost(String pharmacyId) => '/boost/pharmacy/$pharmacyId/active';
+
+  // 🎮 Gamification Endpoints (PHARMACY ONLY)
+  static String pointsStats(String pharmacyId) => '/pharmaciens/$pharmacyId/points/stats';
+  static String pointsRanking(String pharmacyId) => '/pharmaciens/$pharmacyId/points/ranking';
+  static String pointsHistoryToday(String pharmacyId) => '/pharmaciens/$pharmacyId/points/history/today';
+  static const String badgeThresholds = '/pharmaciens/points/badges';
+  static const String createRating = '/ratings';
 
   // Default Headers
   static Map<String, String> get defaultHeaders => {

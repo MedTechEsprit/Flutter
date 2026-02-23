@@ -1,184 +1,140 @@
 import 'package:flutter/material.dart';
+import 'package:diab_care/core/services/token_service.dart';
 import 'package:diab_care/features/auth/services/auth_service.dart';
-import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
 
 enum UserRole { patient, doctor, pharmacy }
 
-/// ViewModel d'authentification unifié pour tous les rôles
-/// Utilise AuthService avec stockage SharedPreferences
 class AuthViewModel extends ChangeNotifier {
+  final TokenService _tokenService = TokenService();
+  final AuthService _authService = AuthService();
+
   UserRole? _selectedRole;
   bool _isLoggedIn = false;
   String _userName = '';
   String? _userId;
-  String? _loginError;
+  String? _errorMessage;
   bool _isLoading = false;
-  Map<String, dynamic>? _userData;
 
-  // Service d'authentification unifié
-  final AuthService _authService = AuthService();
-
-  // Profil pharmacie (pour compatibilité avec PharmacyViewModel)
-  PharmacyProfile? _pharmacyProfile;
-
-  // Getters
   UserRole? get selectedRole => _selectedRole;
   bool get isLoggedIn => _isLoggedIn;
   String get userName => _userName;
   String? get userId => _userId;
-  String? get loginError => _loginError;
+  String? get errorMessage => _errorMessage;
   bool get isLoading => _isLoading;
-  Map<String, dynamic>? get userData => _userData;
-  PharmacyProfile? get pharmacyProfile => _pharmacyProfile;
-  AuthService get authService => _authService;
 
-  /// Sélectionne le rôle utilisateur
+  /// Initialize the ViewModel - call this on app start
+  Future<void> init() async {
+    await _tokenService.init();
+
+    if (_tokenService.isLoggedInSync) {
+      _isLoggedIn = true;
+      final userData = _tokenService.userData;
+      if (userData != null) {
+        _userName = _extractUserName(userData);
+        _userId = userData['_id']?.toString() ?? userData['id']?.toString();
+        _selectedRole = _parseRole(userData['role']?.toString());
+      }
+      notifyListeners();
+    }
+  }
+
   void selectRole(UserRole role) {
     _selectedRole = role;
-    debugPrint('🎭 Role sélectionné: $role');
+    _errorMessage = null;
     notifyListeners();
   }
 
-  /// Initialise le ViewModel depuis les données stockées
-  Future<bool> initialize() async {
-    debugPrint('🔄 ========== INITIALISATION AUTH ==========');
-
-    final isLogged = await _authService.isLoggedIn();
-    if (!isLogged) {
-      debugPrint('❌ Pas de session stockée');
-      return false;
-    }
-
-    // Récupérer les données stockées
-    final storedRole = await _authService.getRole();
-    final storedUserId = await _authService.getUserId();
-    final storedUserData = await _authService.getStoredUserData();
-
-    if (storedRole != null && storedUserData != null) {
-      _isLoggedIn = true;
-      _userId = storedUserId;
-      _userData = storedUserData;
-
-      // Restaurer le rôle
-      switch (storedRole) {
-        case 'patient':
-          _selectedRole = UserRole.patient;
-          break;
-        case 'medecin':
-        case 'doctor':
-          _selectedRole = UserRole.doctor;
-          break;
-        case 'pharmacien':
-        case 'pharmacy':
-          _selectedRole = UserRole.pharmacy;
-          _pharmacyProfile = PharmacyProfile.fromJson(storedUserData);
-          break;
-      }
-
-      // Extraire le nom
-      _userName = _extractUserName(storedUserData, _selectedRole);
-
-      debugPrint('✅ Session restaurée: $_userName (${_selectedRole?.name})');
-      notifyListeners();
-      return true;
-    }
-
-    return false;
-  }
-
-  /// Connexion utilisateur
   Future<bool> login(String email, String password) async {
     _isLoading = true;
-    _loginError = null;
+    _errorMessage = null;
     notifyListeners();
 
-    debugPrint('🔐 Login avec role: $_selectedRole');
+    try {
+      final response = await _authService.login(email, password);
 
-    final result = await _authService.login(
-      email: email,
-      password: password,
-    );
+      if (response.success && response.token != null && response.userData != null) {
+        // Save token and user data
+        await _tokenService.saveAuthData(
+          token: response.token!,
+          userData: response.userData!,
+        );
 
-    _isLoading = false;
+        _isLoggedIn = true;
+        _userName = _extractUserName(response.userData!);
+        _userId = response.userData!['_id']?.toString() ??
+                  response.userData!['id']?.toString();
+        // Auto-detect role from backend response
+        _selectedRole = _parseRole(response.userData!['role']?.toString());
+        _errorMessage = null;
 
-    if (result['success'] == true) {
-      _isLoggedIn = true;
-      _userId = result['userId'];
-      _userData = result['user'];
-
-      // Extraire le nom utilisateur
-      if (_userData != null) {
-        _userName = _extractUserName(_userData!, _selectedRole);
-
-        // Si pharmacien, créer le profil pharmacie
-        if (_selectedRole == UserRole.pharmacy) {
-          _pharmacyProfile = PharmacyProfile.fromJson(_userData!);
-        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = response.errorMessage ?? 'Login failed';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
-
-      debugPrint('✅ Connexion réussie: $_userName');
-      _loginError = null;
-      notifyListeners();
-      return true;
-    } else {
-      _loginError = result['message'] as String?;
-      debugPrint('❌ Erreur login: $_loginError');
+    } catch (e) {
+      _errorMessage = 'Connection error: $e';
+      _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// Déconnexion
   Future<void> logout() async {
-    debugPrint('🚪 Déconnexion...');
-    await _authService.logout();
-
+    await _tokenService.clearAuthData();
     _isLoggedIn = false;
+    _selectedRole = null;
     _userName = '';
     _userId = null;
-    _selectedRole = null;
-    _userData = null;
-    _pharmacyProfile = null;
-    _loginError = null;
-
-    notifyListeners();
-    debugPrint('✅ Déconnexion effectuée');
-  }
-
-  /// Efface les erreurs
-  void clearError() {
-    _loginError = null;
+    _errorMessage = null;
     notifyListeners();
   }
 
-  /// Extrait le nom utilisateur depuis les données
-  String _extractUserName(Map<String, dynamic> data, UserRole? role) {
-    final prenom = data['prenom'] ?? '';
-    final nom = data['nom'] ?? '';
+  /// Get current user's patient ID (for patient role)
+  Future<String?> getPatientId() async {
+    return await _tokenService.getPatientId();
+  }
 
-    switch (role) {
-      case UserRole.patient:
-        final name = '$prenom $nom'.trim();
-        return name.isNotEmpty ? name : 'Patient';
-      case UserRole.doctor:
-        final name = '$prenom $nom'.trim();
-        return name.isNotEmpty ? 'Dr. $name' : 'Médecin';
-      case UserRole.pharmacy:
-        final nomPharmacie = data['nomPharmacie'] ?? '';
-        return nomPharmacie.isNotEmpty ? nomPharmacie : 'Pharmacie';
+  /// Get current user's doctor ID (for doctor role)
+  Future<String?> getDoctorId() async {
+    return await _tokenService.getDoctorId();
+  }
+
+  /// Get current JWT token
+  Future<String?> getToken() async {
+    return await _tokenService.getToken();
+  }
+
+  String _extractUserName(Map<String, dynamic> userData) {
+    // Try different field combinations based on your backend response
+    final nom = userData['nom'] ?? '';
+    final prenom = userData['prenom'] ?? '';
+    final name = userData['name'] ?? '';
+    final fullName = userData['fullName'] ?? '';
+
+    if (fullName.isNotEmpty) return fullName;
+    if (name.isNotEmpty) return name;
+    if (nom.isNotEmpty || prenom.isNotEmpty) return '$prenom $nom'.trim();
+    return userData['email'] ?? 'User';
+  }
+
+  UserRole? _parseRole(String? role) {
+    if (role == null) return null;
+    switch (role.toLowerCase()) {
+      case 'patient':
+        return UserRole.patient;
+      case 'medecin':
+      case 'doctor':
+        return UserRole.doctor;
+      case 'pharmacien':
+      case 'pharmacy':
+        return UserRole.pharmacy;
       default:
-        return '$prenom $nom'.trim();
+        return null;
     }
   }
-
-  /// Récupère le token (pour les appels API)
-  Future<String?> getToken() async {
-    return await _authService.getToken();
-  }
-
-  /// Récupère l'ID utilisateur
-  Future<String?> getUserId() async {
-    return await _authService.getUserId();
-  }
 }
-

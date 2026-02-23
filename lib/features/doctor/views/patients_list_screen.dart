@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
+import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/patient_service.dart';
+import 'package:diab_care/data/models/patient_model.dart';
 import 'patient_detail_view_screen.dart';
 import 'patient_medical_report_screen.dart';
 
@@ -12,6 +15,94 @@ class PatientsListScreen extends StatefulWidget {
 
 class _PatientsListScreenState extends State<PatientsListScreen> {
   String selectedFilter = 'All';
+
+  // API Integration
+  final _patientService = PatientService();
+  final _tokenService = TokenService();
+  final _searchController = TextEditingController();
+
+  List<PatientModel> _patients = [];
+  StatusCounts? _statusCounts;
+  bool _isLoading = true;
+  String? _errorMessage;
+  String? _doctorId;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPatients();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPatients() async {
+    print('📋 === LOADING PATIENTS ===');
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Get doctor ID
+      _doctorId = await _tokenService.getUserId();
+      print('👤 Doctor ID: $_doctorId');
+
+      if (_doctorId == null) {
+        throw Exception('Doctor ID not found. Please login again.');
+      }
+
+      // Map filter to API status
+      String apiStatus = 'all';
+      if (selectedFilter != 'All') {
+        apiStatus = selectedFilter.toLowerCase();
+      }
+
+      // Fetch patients from API
+      final response = await _patientService.getDoctorPatients(
+        doctorId: _doctorId!,
+        status: apiStatus,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+      );
+
+      setState(() {
+        _patients = response.data;
+        _statusCounts = response.statusCounts;
+        _isLoading = false;
+      });
+
+      print('✅ Loaded ${_patients.length} patients');
+    } catch (e) {
+      print('❌ Error loading patients: $e');
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _onFilterChanged(String filter) {
+    setState(() {
+      selectedFilter = filter;
+    });
+    _loadPatients();
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+    // Debounce search - wait 500ms before calling API
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (_searchQuery == query) {
+        _loadPatients();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +143,11 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '248 patients registered',
+                      _isLoading
+                          ? 'Loading...'
+                          : _statusCounts != null
+                              ? '${_statusCounts!.total} patients registered'
+                              : '0 patients registered',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
@@ -74,15 +169,25 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
                         ],
                       ),
                       child: TextField(
+                        controller: _searchController,
+                        onChanged: _onSearchChanged,
                         decoration: InputDecoration(
                           hintText: 'Search patients...',
                           hintStyle: TextStyle(color: Colors.grey.shade400),
                           prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
                           border: InputBorder.none,
-                          suffixIcon: IconButton(
-                            icon: Icon(Icons.filter_list, color: const Color(0xFF7DDAB9)),
-                            onPressed: () => _showFilterBottomSheet(context),
-                          ),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearchChanged('');
+                                  },
+                                )
+                              : IconButton(
+                                  icon: Icon(Icons.filter_list, color: const Color(0xFF7DDAB9)),
+                                  onPressed: () => _showFilterBottomSheet(context),
+                                ),
                         ),
                       ),
                     ),
@@ -111,48 +216,134 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
 
           // Patients List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: 15,
-              itemBuilder: (context, index) {
-                final statuses = ['Stable', 'Attention', 'Critical'];
-                final status = statuses[index % 3];
-                return _buildPatientCard(
-                  context,
-                  name: 'Patient ${index + 1}',
-                  age: 45 + index,
-                  diabetesType: index % 2 == 0 ? 'Type 1' : 'Type 2',
-                  status: status,
-                  lastReading: '${120 + (index * 10)} mg/dL',
-                  riskScore: index % 3 == 2 ? 'High' : index % 3 == 1 ? 'Medium' : 'Low',
-                );
-              },
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF7DDAB9),
+                    ),
+                  )
+                : _errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading patients',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: _loadPatients,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7DDAB9),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _patients.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.people_outline,
+                                  size: 64,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No patients found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'Try a different search term'
+                                      : 'Start by accepting patient requests',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _loadPatients,
+                            color: const Color(0xFF7DDAB9),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(20),
+                              itemCount: _patients.length,
+                              itemBuilder: (context, index) {
+                                final patient = _patients[index];
+                                return _buildPatientCard(
+                                  context,
+                                  patient: patient,
+                                );
+                              },
+                            ),
+                          ),
           ),
         ],
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF7DDAB9), Color(0xFF5BC4A8)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF7DDAB9).withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 70), // Add padding to avoid navigation bar
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF7DDAB9), Color(0xFF5BC4A8)],
             ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () {},
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          icon: const Icon(Icons.person_add, color: Colors.white),
-          label: const Text('Add Patient', style: TextStyle(color: Colors.white)),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7DDAB9).withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: FloatingActionButton.extended(
+            onPressed: () {},
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            icon: const Icon(Icons.person_add, color: Colors.white),
+            label: const Text('Add Patient', style: TextStyle(color: Colors.white)),
+          ),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -161,11 +352,7 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedFilter = label;
-          });
-        },
+        onTap: () => _onFilterChanged(label),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
@@ -205,21 +392,25 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
   }
 
   Widget _buildPatientCard(BuildContext context, {
-    required String name,
-    required int age,
-    required String diabetesType,
-    required String status,
-    required String lastReading,
-    required String riskScore,
+    required PatientModel patient,
   }) {
+    final status = patient.displayStatus;
+    final name = patient.fullName;
+    final age = patient.age ?? 0;
+    final diabetesType = patient.typeDiabete ?? 'Type Unknown';
+    final lastReading = patient.lastGlucoseReading != null
+        ? '${patient.lastGlucoseReading!.toStringAsFixed(0)} mg/dL'
+        : 'No data';
+    final riskScore = patient.riskScore ?? 'Low';
+
     Color statusColor;
     IconData statusIcon;
-    switch (status) {
-      case 'Critical':
+    switch (status.toLowerCase()) {
+      case 'critical':
         statusColor = AppColors.critical;
         statusIcon = Icons.warning_amber;
         break;
-      case 'Attention':
+      case 'attention':
         statusColor = AppColors.attention;
         statusIcon = Icons.error_outline;
         break;

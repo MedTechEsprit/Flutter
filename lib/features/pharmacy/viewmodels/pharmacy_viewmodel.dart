@@ -2,13 +2,15 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
-import 'package:diab_care/features/auth/services/auth_service.dart';
+import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/core/services/gamification_service.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
 import 'package:diab_care/features/pharmacy/services/pharmacy_dashboard_service.dart';
 import 'package:diab_care/features/pharmacy/services/medication_request_service.dart';
 import 'package:diab_care/features/pharmacy/services/boost_service.dart';
 import 'package:diab_care/features/pharmacy/services/activity_service.dart';
 import 'package:diab_care/data/models/pharmacy_models.dart';
+import 'package:diab_care/data/models/gamification_models.dart';
 
 /// État de chargement
 enum LoadingState { initial, loading, loaded, error }
@@ -16,11 +18,12 @@ enum LoadingState { initial, loading, loaded, error }
 /// ViewModel principal pour la pharmacie
 /// Gère l'état de l'authentification, du dashboard et des demandes
 class PharmacyViewModel extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final TokenService _tokenService = TokenService();
   final PharmacyDashboardService _dashboardService = PharmacyDashboardService();
   final MedicationRequestService _requestService = MedicationRequestService();
   final BoostService _boostService = BoostService();
   final ActivityService _activityService = ActivityService();
+  final GamificationService _gamificationService = GamificationService();
 
   // État d'authentification
   bool _isLoggedIn = false;
@@ -31,6 +34,14 @@ class PharmacyViewModel extends ChangeNotifier {
   LoadingState _dashboardState = LoadingState.initial;
   PharmacyDashboardModel? _dashboardData;
   String? _dashboardError;
+
+  // 🎮 État de la gamification
+  LoadingState _gamificationState = LoadingState.initial;
+  PointsStatsResponse? _pointsStats;
+  RankingResponse? _ranking;
+  List<BadgeThreshold> _badgeThresholds = [];
+  List<PointsHistoryItem> _pointsHistory = [];
+  String? _gamificationError;
 
   // État des demandes
   LoadingState _requestsState = LoadingState.initial;
@@ -69,6 +80,42 @@ class PharmacyViewModel extends ChangeNotifier {
   String? get boostError => _boostError;
 
   List<ActivityModel> get activityFeed => _activityFeed;
+
+  // 🎮 Gamification Getters
+  LoadingState get gamificationState => _gamificationState;
+  PointsStatsResponse? get pointsStats => _pointsStats;
+  RankingResponse? get ranking => _ranking;
+  List<BadgeThreshold> get badgeThresholds => _badgeThresholds;
+  List<PointsHistoryItem> get pointsHistory => _pointsHistory;
+  String? get gamificationError => _gamificationError;
+
+  // Helper: Get current badge and next badge
+  BadgeThreshold? get currentBadge {
+    if (_pointsStats == null || _badgeThresholds.isEmpty) return null;
+    return _gamificationService.getCurrentBadge(
+      _pointsStats!.currentPoints,
+      _badgeThresholds,
+    );
+  }
+
+  BadgeThreshold? get nextBadge {
+    if (_pointsStats == null || _badgeThresholds.isEmpty) return null;
+    return _gamificationService.getNextBadge(
+      _pointsStats!.currentPoints,
+      _badgeThresholds,
+    );
+  }
+
+  // Helper: Get badge progression
+  Map<String, dynamic> get badgeProgress {
+    if (_pointsStats == null || _badgeThresholds.isEmpty) {
+      return {'progress': 0, 'pointsNeeded': 0};
+    }
+    return _gamificationService.calculateBadgeProgress(
+      _pointsStats!.currentPoints,
+      _badgeThresholds,
+    );
+  }
 
   /// Convertit les données API en PharmacyStats pour les widgets existants
   PharmacyStats? get pharmacyStats {
@@ -245,11 +292,11 @@ class PharmacyViewModel extends ChangeNotifier {
     debugPrint('🔄 PharmacyViewModel.initialize() appelé');
 
     // Vérifier si les tokens sont stockés
-    _isLoggedIn = await _authService.isLoggedIn();
+    _isLoggedIn = await _tokenService.isLoggedIn();
     debugPrint('📱 isLoggedIn from storage: $_isLoggedIn');
 
     if (_isLoggedIn) {
-      final userData = await _authService.getStoredUserData();
+      final userData = await _tokenService.getUserData();
       if (userData != null) {
         _pharmacyProfile = PharmacyProfile.fromJson(userData);
       }
@@ -281,8 +328,8 @@ class PharmacyViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       debugPrint('🔑 Token from storage: ${token != null ? "Present" : "NULL"}');
       debugPrint('🆔 PharmacyId from storage: $pharmacyId');
@@ -338,28 +385,17 @@ class PharmacyViewModel extends ChangeNotifier {
   }
 
   /// Connexion de la pharmacie (non utilisée car AuthViewModel gère le login)
+  /// Deprecated: Use AuthViewModel.login() instead
+  @Deprecated('Use AuthViewModel.login() instead')
   Future<bool> login(String email, String password) async {
-    _authError = null;
+    _authError = 'Cette méthode est dépréciée. Utilisez AuthViewModel.login()';
     notifyListeners();
-
-    final result = await _authService.login(email: email, password: password);
-
-    if (result['success'] == true) {
-      _isLoggedIn = true;
-      _pharmacyProfile = result['user'] as PharmacyProfile?;
-      _authError = null;
-      notifyListeners();
-      return true;
-    } else {
-      _authError = result['message'] as String?;
-      notifyListeners();
-      return false;
-    }
+    return false;
   }
 
   /// Déconnexion
   Future<void> logout() async {
-    await _authService.logout();
+    await _tokenService.clearAuthData();
     _isLoggedIn = false;
     _pharmacyProfile = null;
     _dashboardData = null;
@@ -380,10 +416,10 @@ class PharmacyViewModel extends ChangeNotifier {
 
     // Vérifier d'abord si on est connecté
     if (!_isLoggedIn) {
-      final isLoggedInStorage = await _authService.isLoggedIn();
+      final isLoggedInStorage = await _tokenService.isLoggedIn();
       if (isLoggedInStorage) {
         _isLoggedIn = true;
-        final userData = await _authService.getStoredUserData();
+        final userData = await _tokenService.getUserData();
         if (userData != null) {
           _pharmacyProfile = PharmacyProfile.fromJson(userData);
         }
@@ -649,8 +685,8 @@ class PharmacyViewModel extends ChangeNotifier {
     try {
       debugPrint('🔄 Updating online status to: $isOnline');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -746,5 +782,217 @@ class PharmacyViewModel extends ChangeNotifier {
         .map((m) => m.revenue)
         .toList();
   }
-}
 
+  // ─── Méthodes de Gamification ───────────────────────────
+
+  /// Charge les stats de gamification (points, badges, ranking)
+  Future<void> loadGamificationData() async {
+    debugPrint('🎮 loadGamificationData() appelé');
+    _gamificationState = LoadingState.loading;
+    _gamificationError = null;
+    notifyListeners();
+
+    try {
+      final pharmacyId = await _tokenService.getUserId();
+      if (pharmacyId == null) {
+        throw Exception('PharmacyId manquant');
+      }
+
+      // Charger les stats de points
+      debugPrint('📊 Fetching points stats...');
+      _pointsStats = await _gamificationService.getPointsStats(pharmacyId);
+      debugPrint('✅ Points stats loaded: ${_pointsStats?.currentPoints} points');
+
+      // Charger le ranking
+      debugPrint('🏆 Fetching ranking...');
+      _ranking = await _gamificationService.getRanking(pharmacyId);
+      debugPrint('✅ Ranking loaded: #${_ranking?.rank} / ${_ranking?.totalPharmacies}');
+
+      // Charger les seuils de badges
+      debugPrint('🏅 Fetching badge thresholds...');
+      _badgeThresholds = await _gamificationService.getBadgeThresholds();
+      debugPrint('✅ Badge thresholds loaded: ${_badgeThresholds.length} badges');
+
+      // Charger l'historique du jour
+      debugPrint('📈 Fetching daily history...');
+      _pointsHistory = await _gamificationService.getDailyHistory(pharmacyId);
+      debugPrint('✅ Daily history loaded: ${_pointsHistory.length} activities');
+
+      _gamificationState = LoadingState.loaded;
+    } catch (e) {
+      debugPrint('❌ loadGamificationData error: $e');
+      _gamificationState = LoadingState.error;
+      _gamificationError = e.toString();
+      if (e.toString().contains('Session expirée')) {
+        await logout();
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Rafraîchit les données de gamification
+  Future<void> refreshGamificationData() async {
+    await loadGamificationData();
+  }
+
+  /// Répond à une demande de médicament et déclenche la pop-up gamification
+  /// Utilisé par les boutons d'action dans les écrans de demandes
+  Future<Map<String, dynamic>> respondToMedicationRequest({
+    required String requestId,
+    required String status, // "accepted", "unavailable", "declined"
+    double? indicativePrice,
+    String? preparationDelay,
+    String? pharmacyMessage,
+    DateTime? pickupDeadline,
+  }) async {
+    debugPrint('🎮 respondToMedicationRequest() - Status: $status');
+
+    try {
+      final pharmacyId = await _tokenService.getUserId();
+      if (pharmacyId == null) {
+        throw Exception('PharmacyId manquant');
+      }
+
+      // Créer le DTO de réponse
+      final dto = RespondToRequestDto(
+        pharmacyId: pharmacyId,
+        status: status,
+        indicativePrice: indicativePrice,
+        preparationDelay: preparationDelay,
+        pharmacyMessage: pharmacyMessage,
+        pickupDeadline: pickupDeadline,
+      );
+
+      // Appeler l'API
+      debugPrint('🌐 Calling respondToRequest API...');
+      final response = await _gamificationService.respondToRequest(requestId, dto);
+      debugPrint('✅ Response received');
+
+      // Extraire les informations de points
+      if (response.pharmacyResponses.isNotEmpty) {
+        final pharmacyResponse = response.pharmacyResponses.first;
+        final pointsAwarded = pharmacyResponse.pointsAwarded;
+        final breakdown = _buildBreakdownList(
+          pharmacyResponse.pointsBreakdown.basePoints,
+          pharmacyResponse.pointsBreakdown.bonusPoints,
+        );
+
+        // Rafraîchir les données
+        debugPrint('🔄 Refreshing all data after response...');
+        await Future.wait([
+          loadAllRequests(),
+          loadDashboard(),
+          loadActivityFeed(),
+          loadGamificationData(),
+        ]);
+
+        // Retourner les infos pour afficher la pop-up
+        return {
+          'success': true,
+          'status': status,
+          'pointsAwarded': pointsAwarded,
+          'basePoints': pharmacyResponse.pointsBreakdown.basePoints,
+          'bonusPoints': pharmacyResponse.pointsBreakdown.bonusPoints,
+          'breakdown': breakdown,
+          'reason': pharmacyResponse.pointsBreakdown.reason,
+          'responseTime': pharmacyResponse.responseTime,
+          'beforePoints': _pointsStats?.currentPoints ?? 0,
+          'afterPoints': (_pointsStats?.currentPoints ?? 0) + pointsAwarded,
+        };
+      }
+
+      return {
+        'success': false,
+        'error': 'Réponse vide du serveur',
+      };
+    } catch (e) {
+      debugPrint('❌ respondToMedicationRequest error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Créer une évaluation client (rating) et déclencher la pop-up bonus
+  Future<Map<String, dynamic>> submitRating({
+    required String patientId,
+    required String medicationRequestId,
+    required int stars,
+    String? comment,
+    required bool medicationAvailable,
+    int? speedRating,
+    int? courtesynRating,
+  }) async {
+    debugPrint('⭐ submitRating() - Stars: $stars');
+
+    try {
+      final pharmacyId = await _tokenService.getUserId();
+      if (pharmacyId == null) {
+        throw Exception('PharmacyId manquant');
+      }
+
+      // Créer le DTO d'évaluation
+      final dto = CreateRatingDto(
+        patientId: patientId,
+        pharmacyId: pharmacyId,
+        medicationRequestId: medicationRequestId,
+        stars: stars,
+        comment: comment,
+        medicationAvailable: medicationAvailable,
+        speedRating: speedRating,
+        courtesynRating: courtesynRating,
+      );
+
+      // Appeler l'API
+      debugPrint('🌐 Calling createRating API...');
+      final response = await _gamificationService.createRating(dto);
+      debugPrint('✅ Rating submitted successfully');
+
+      // Rafraîchir les données
+      await loadGamificationData();
+
+      // Retourner les infos pour afficher la pop-up
+      return {
+        'success': true,
+        'stars': response.stars,
+        'pointsAwarded': response.pointsAwarded,
+        'penaltyApplied': response.penaltyApplied,
+        'beforePoints': (_pointsStats?.currentPoints ?? 0) - response.pointsAwarded,
+        'afterPoints': _pointsStats?.currentPoints ?? 0,
+      };
+    } catch (e) {
+      debugPrint('❌ submitRating error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Helper: Construire la liste breakdown des points
+  List<String> _buildBreakdownList(int basePoints, int bonusPoints) {
+    final list = <String>[];
+    list.add('Base: +$basePoints');
+    if (bonusPoints > 0) {
+      if (bonusPoints >= 20) {
+        list.add('Bonus: +$bonusPoints (Ultra-rapide < 30 min)');
+      } else if (bonusPoints >= 15) {
+        list.add('Bonus: +$bonusPoints (Rapide 30-60 min)');
+      } else if (bonusPoints >= 5) {
+        list.add('Bonus: +$bonusPoints (< 120 min)');
+      } else {
+        list.add('Bonus: +$bonusPoints');
+      }
+    }
+    return list;
+  }
+
+  /// Obtenir les données pour les graphiques de gamification
+  List<int> getPointsHistoryChart() {
+    if (_pointsHistory.isEmpty) return [0, 0, 0, 0, 0, 0, 0];
+
+    // Grouper par heure ou créer un graphique simple
+    return _pointsHistory.take(7).map((item) => item.points).toList();
+  }
+}

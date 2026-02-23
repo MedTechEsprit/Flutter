@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
-import 'package:diab_care/features/auth/services/auth_service.dart';
+import 'package:diab_care/core/services/token_service.dart';
 
 class PharmacyDashboardService {
-  final AuthService _authService = AuthService();
+  final TokenService _tokenService = TokenService();
 
   /// Load complete dashboard data
   /// GET /pharmaciens/{pharmacyId}/dashboard
@@ -14,8 +14,8 @@ class PharmacyDashboardService {
     try {
       debugPrint('🔄 PharmacyDashboardService.loadDashboard() appelé');
 
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       debugPrint('🔑 Token: ${token != null ? "Present (${token.length} chars)" : "NULL"}');
       debugPrint('🆔 PharmacyId: $pharmacyId');
@@ -49,7 +49,6 @@ class PharmacyDashboardService {
         return model;
       } else if (response.statusCode == 401) {
         debugPrint('❌ 401 Unauthorized');
-        await _authService.logout();
         throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         debugPrint('❌ Erreur: ${response.statusCode} - ${response.body}');
@@ -105,8 +104,8 @@ class PharmacyDashboardService {
   /// GET /pharmaciens/{id}/stats
   Future<DashboardStats?> loadBasicStats() async {
     try {
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -121,7 +120,6 @@ class PharmacyDashboardService {
         final data = jsonDecode(response.body);
         return DashboardStats.fromJson(data);
       } else if (response.statusCode == 401) {
-        await _authService.logout();
         throw Exception('Session expirée');
       } else {
         return null;
@@ -135,8 +133,8 @@ class PharmacyDashboardService {
   /// GET /pharmaciens/{id}/stats/monthly
   Future<List<MonthlyStats>> loadMonthlyStats() async {
     try {
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -151,7 +149,6 @@ class PharmacyDashboardService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((m) => MonthlyStats.fromJson(m)).toList();
       } else if (response.statusCode == 401) {
-        await _authService.logout();
         throw Exception('Session expirée');
       } else {
         return [];
@@ -165,8 +162,8 @@ class PharmacyDashboardService {
   /// GET /activity/pharmacy/{id}/feed
   Future<List<ApiActivityEvent>> loadActivityFeed() async {
     try {
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         throw Exception('Non authentifié');
@@ -192,8 +189,8 @@ class PharmacyDashboardService {
   /// GET /review/pharmacy/{pharmacyId}/summary
   Future<Map<String, dynamic>?> loadReviewSummary() async {
     try {
-      final token = await _authService.getToken();
-      final pharmacyId = await _authService.getUserId();
+      final token = await _tokenService.getToken();
+      final pharmacyId = await _tokenService.getUserId();
 
       if (token == null || pharmacyId == null) {
         return null;

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
+import 'package:diab_care/features/chat/viewmodels/chat_viewmodel.dart';
+import 'package:diab_care/features/chat/views/chat_screen.dart';
 
 class FindDoctorsScreen extends StatefulWidget {
   const FindDoctorsScreen({super.key});
@@ -56,12 +58,7 @@ class _FindDoctorsScreenState extends State<FindDoctorsScreen> {
               ),
             ),
           ),
-          if (vm.isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(color: AppColors.softGreen)),
-            )
-          else
-            SliverPadding(
+          SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: doctors.isEmpty
                 ? const SliverFillRemaining(
@@ -160,14 +157,27 @@ class _DoctorCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.message, size: 16),
-                  label: const Text('Message'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.softGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: Builder(
+                  builder: (ctx) => ElevatedButton.icon(
+                    onPressed: () async {
+                      final chatVM = ctx.read<ChatViewModel>();
+                      final conv = await chatVM.startConversation(doctor.id);
+                      if (conv != null && ctx.mounted) {
+                        Navigator.push(
+                          ctx,
+                          MaterialPageRoute(
+                            builder: (_) => ChatDetailScreen(conversation: conv),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.message, size: 16),
+                    label: const Text('Message'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.softGreen,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                   ),
                 ),
               ),

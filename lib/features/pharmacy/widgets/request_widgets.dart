@@ -5,9 +5,9 @@ import 'package:diab_care/data/models/pharmacy_models.dart';
 
 class RequestCard extends StatelessWidget {
   final MedicationRequest request;
-  final VoidCallback? onAccept, onDecline, onIgnore;
+  final VoidCallback? onAccept, onDecline, onUnavailable, onIgnore;
 
-  const RequestCard({super.key, required this.request, this.onAccept, this.onDecline, this.onIgnore});
+  const RequestCard({super.key, required this.request, this.onAccept, this.onDecline, this.onUnavailable, this.onIgnore});
 
   @override
   Widget build(BuildContext context) {
@@ -76,12 +76,14 @@ class RequestCard extends StatelessWidget {
 
   Widget _buildActions() {
     return Column(children: [
+      // Bouton principal "Disponible" (Vert)
       SizedBox(width: double.infinity, height: 48, child: ElevatedButton(onPressed: onAccept, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.check_rounded, size: 20), SizedBox(width: 8), Text('Disponible', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))]))),
       const SizedBox(height: 10),
+      // Deux boutons: "Non disponible" (Orange) et "Refuser" (Rouge)
       Row(children: [
-        Expanded(child: SizedBox(height: 44, child: OutlinedButton(onPressed: onDecline, style: OutlinedButton.styleFrom(foregroundColor: AppColors.textSecondary, side: BorderSide(color: AppColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Non disponible', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))),
+        Expanded(child: SizedBox(height: 44, child: OutlinedButton(onPressed: onUnavailable, style: OutlinedButton.styleFrom(foregroundColor: Colors.orange, side: const BorderSide(color: Colors.orange), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Non disponible', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))))),
         const SizedBox(width: 10),
-        Expanded(child: SizedBox(height: 44, child: OutlinedButton(onPressed: onIgnore, style: OutlinedButton.styleFrom(foregroundColor: AppColors.textMuted, side: BorderSide(color: AppColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Ignorer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))),
+        Expanded(child: SizedBox(height: 44, child: OutlinedButton(onPressed: onDecline, style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Refuser', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))))),
       ]),
     ]);
   }
