@@ -4,6 +4,7 @@ import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/app_text_styles.dart';
 import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
 import 'package:diab_care/features/pharmacy/widgets/boost_management_widget.dart';
+import 'package:diab_care/features/pharmacy/views/pharmacy_points_screen.dart';
 // ignore: unused_import
 import 'package:diab_care/data/models/pharmacy_models.dart';
 
@@ -283,7 +284,10 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
           children: [
             Expanded(child: _buildStatCard('❌', '$declined', 'Refusées', const Color(0xFFFFEBEE), const Color(0xFFEF5350))),
             const SizedBox(width: 10),
-            Expanded(child: _buildStatCard('🎯', '$points', 'Points', const Color(0xFFE1F5FE), const Color(0xFF29B6F6))),
+            Expanded(child: GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PharmacyPointsScreen())),
+              child: _buildStatCard('🎯', '$points', 'Points', const Color(0xFFE1F5FE), const Color(0xFF29B6F6)),
+            )),
             const SizedBox(width: 10),
             Expanded(child: _buildStatCard('💰', '${revenue.toStringAsFixed(0)}', 'TND', const Color(0xFFF3E5F5), const Color(0xFFAB47BC))),
           ],

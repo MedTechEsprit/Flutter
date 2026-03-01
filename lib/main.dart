@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_theme.dart';
 import 'package:diab_care/core/theme/theme_provider.dart';
@@ -18,6 +19,7 @@ import 'package:diab_care/features/auth/views/register_role_screen.dart';
 import 'package:diab_care/features/patient/views/patient_home_screen.dart';
 import 'package:diab_care/features/doctor/views/doctor_home_screen.dart';
 import 'package:diab_care/features/pharmacy/views/pharmacy_home_screen.dart';
+import 'package:diab_care/features/patient/views/medical_profile_form_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +65,16 @@ class DiabCareApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('fr', 'FR'),
+              Locale('en', 'US'),
+            ],
+            locale: const Locale('fr', 'FR'),
             initialRoute: '/',
             // Add error builder
             builder: (context, widget) {
@@ -110,6 +122,7 @@ class DiabCareApp extends StatelessWidget {
               '/register-medecin': (context) => const RegisterMedecinScreen(),
               '/register-pharmacien': (context) => const RegisterPharmacienScreen(),
               '/patient-home': (context) => const PatientHomeScreen(),
+              '/medical-profile': (context) => const MedicalProfileFormScreen(isPostRegistration: true),
               '/doctor-home': (context) => const DoctorHomeScreen(),
               '/pharmacy-home': (context) => const PharmacyHomeScreen(),
             },

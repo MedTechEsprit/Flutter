@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
+import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/patient_request_service.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
 import 'package:diab_care/features/chat/viewmodels/chat_viewmodel.dart';
 import 'package:diab_care/features/chat/views/chat_screen.dart';
@@ -14,6 +16,66 @@ class FindDoctorsScreen extends StatefulWidget {
 
 class _FindDoctorsScreenState extends State<FindDoctorsScreen> {
   String _searchQuery = '';
+  final _requestService = PatientRequestService();
+  final _tokenService = TokenService();
+  String? _patientId;
+  // Map doctorId → status ('pending', 'accepted', 'declined', or null)
+  Map<String, String> _requestStatuses = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequestStatuses();
+  }
+
+  Future<void> _loadRequestStatuses() async {
+    _patientId = await _tokenService.getUserId();
+    if (_patientId == null) return;
+    try {
+      final requests = await _requestService.getMyRequests(_patientId!);
+      final map = <String, String>{};
+      for (final r in requests) {
+        // doctorId can be an object (populated) or string
+        final docId = r['doctorId'] is Map ? r['doctorId']['_id']?.toString() : r['doctorId']?.toString();
+        if (docId != null) {
+          map[docId] = r['status'] ?? 'pending';
+        }
+      }
+      if (mounted) setState(() => _requestStatuses = map);
+    } catch (_) {}
+  }
+
+  Future<void> _sendRequest(String doctorId) async {
+    if (_patientId == null) return;
+    try {
+      await _requestService.createPatientRequest(
+        patientId: _patientId!,
+        doctorId: doctorId,
+      );
+      setState(() => _requestStatuses[doctorId] = 'pending');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Demande envoyée avec succès !'),
+            backgroundColor: AppColors.statusGood,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +129,11 @@ class _FindDoctorsScreenState extends State<FindDoctorsScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _DoctorCard(doctor: doctors[index]),
+                        child: _DoctorCard(
+                          doctor: doctors[index],
+                          requestStatus: _requestStatuses[doctors[index].id],
+                          onSendRequest: () => _sendRequest(doctors[index].id),
+                        ),
                       ),
                       childCount: doctors.length,
                     ),
@@ -81,8 +147,10 @@ class _FindDoctorsScreenState extends State<FindDoctorsScreen> {
 
 class _DoctorCard extends StatelessWidget {
   final dynamic doctor;
+  final String? requestStatus;
+  final VoidCallback onSendRequest;
 
-  const _DoctorCard({required this.doctor});
+  const _DoctorCard({required this.doctor, this.requestStatus, required this.onSendRequest});
 
   @override
   Widget build(BuildContext context) {
@@ -144,16 +212,7 @@ class _DoctorCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  label: const Text('Rendez-vous'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.softGreen,
-                    side: const BorderSide(color: AppColors.softGreen),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
+                child: _buildRequestButton(),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -186,6 +245,41 @@ class _DoctorCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildRequestButton() {
+    if (requestStatus == 'accepted') {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.check_circle, size: 16, color: AppColors.statusGood),
+        label: const Text('Accepté', style: TextStyle(color: AppColors.statusGood)),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppColors.statusGood),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else if (requestStatus == 'pending') {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_top, size: 16, color: AppColors.statusWarning),
+        label: const Text('En attente', style: TextStyle(color: AppColors.statusWarning)),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: AppColors.statusWarning),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      return OutlinedButton.icon(
+        onPressed: onSendRequest,
+        icon: const Icon(Icons.person_add, size: 16),
+        label: const Text('Devenir patient'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.lightBlue,
+          side: const BorderSide(color: AppColors.lightBlue),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
   }
 }
 

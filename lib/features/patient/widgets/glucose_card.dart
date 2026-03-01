@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 class GlucoseCard extends StatelessWidget {
   final GlucoseReading reading;
   final VoidCallback? onTap;
+  final String displayUnit;
 
-  const GlucoseCard({super.key, required this.reading, this.onTap});
+  const GlucoseCard({super.key, required this.reading, this.onTap, this.displayUnit = 'mg/dL'});
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +41,13 @@ class GlucoseCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${reading.value.toInt()}',
+                      displayUnit == 'mmol/L'
+                          ? reading.valueInMmolL.toStringAsFixed(1)
+                          : '${reading.valueInMgDl.toInt()}',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _getStatusColor()),
                     ),
                     const SizedBox(width: 4),
-                    const Text('mg/dL', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    Text(displayUnit, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   ],
                 ),
                 const SizedBox(height: 2),

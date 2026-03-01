@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
+import 'package:diab_care/features/chat/viewmodels/chat_viewmodel.dart';
+import 'package:diab_care/features/chat/views/chat_screen.dart';
+import 'package:diab_care/features/patient/views/marketplace_screen.dart';
+import 'package:diab_care/features/patient/views/patient_orders_screen.dart';
+import 'package:diab_care/features/patient/views/my_doctors_screen.dart';
 
 class FindPharmaciesScreen extends StatefulWidget {
   const FindPharmaciesScreen({super.key});
@@ -54,6 +59,19 @@ class _FindPharmaciesScreenState extends State<FindPharmaciesScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
+          // Quick access buttons
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Row(children: [
+                _QuickBtn(icon: Icons.store, label: 'Marketplace', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketplaceScreen()))),
+                const SizedBox(width: 10),
+                _QuickBtn(icon: Icons.receipt_long, label: 'Mes Commandes', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientOrdersScreen()))),
+                const SizedBox(width: 10),
+                _QuickBtn(icon: Icons.medical_services, label: 'Mes Médecins', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyDoctorsScreen()))),
+              ]),
             ),
           ),
           SliverPadding(
@@ -164,9 +182,15 @@ class _PharmacyCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.phone, size: 16),
-                  label: const Text('Appeler'),
+                  onPressed: () async {
+                    final chatVm = context.read<ChatViewModel>();
+                    final conv = await chatVm.startPharmacistConversation(pharmacy.id);
+                    if (conv != null && context.mounted) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailScreen(conversation: conv)));
+                    }
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                  label: const Text('Chat'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.softGreen,
                     side: const BorderSide(color: AppColors.softGreen),
@@ -177,8 +201,8 @@ class _PharmacyCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.medication, size: 16),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketplaceScreen())),
+                  icon: const Icon(Icons.shopping_cart, size: 16),
                   label: const Text('Commander'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.softGreen,
@@ -192,5 +216,28 @@ class _PharmacyCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _QuickBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickBtn({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: AppColors.softGreen, size: 22),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.textSecondary), textAlign: TextAlign.center),
+        ]),
+      ),
+    ));
   }
 }

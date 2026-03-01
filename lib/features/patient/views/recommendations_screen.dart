@@ -12,7 +12,8 @@ class RecommendationsScreen extends StatelessWidget {
     final glucoseVM = context.watch<GlucoseViewModel>();
     final patientVM = context.watch<PatientViewModel>();
     final latest = glucoseVM.latestReading;
-    final currentValue = latest?.value ?? 120;
+    final unit = glucoseVM.preferredUnit;
+    final currentValue = latest != null ? latest.valueIn(unit) : 120.0;
     final recommendations = patientVM.getRecommendations(currentValue);
 
     return Scaffold(
@@ -46,10 +47,10 @@ class RecommendationsScreen extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('${currentValue.toInt()}', style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white, height: 1)),
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 6, left: 4),
-                              child: Text('mg/dL', style: TextStyle(fontSize: 14, color: Colors.white70)),
+                            Text(unit == 'mmol/L' ? currentValue.toStringAsFixed(1) : '${currentValue.toInt()}', style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white, height: 1)),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6, left: 4),
+                              child: Text(unit, style: const TextStyle(fontSize: 14, color: Colors.white70)),
                             ),
                           ],
                         ),

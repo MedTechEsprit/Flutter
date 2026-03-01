@@ -102,7 +102,7 @@ class GlucoseHistoryScreen extends StatelessWidget {
                     ),
                     ...filteredReadings.map((r) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: GlucoseCard(reading: r),
+                      child: GlucoseCard(reading: r, displayUnit: glucoseVM.preferredUnit),
                     )),
                   ],
                 ),

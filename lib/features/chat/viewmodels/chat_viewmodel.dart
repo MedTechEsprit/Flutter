@@ -68,9 +68,13 @@ class ChatViewModel extends ChangeNotifier {
 
     try {
       final isDoctor = role!.toLowerCase() == 'medecin';
+      final isPharmacist = role.toLowerCase() == 'pharmacien';
       if (isDoctor) {
         debugPrint('💬 Loading DOCTOR conversations for $userId');
         _conversations = await _chatService.getDoctorConversations(userId);
+      } else if (isPharmacist) {
+        debugPrint('💬 Loading PHARMACIST conversations for $userId');
+        _conversations = await _chatService.getPharmacistConversations(userId);
       } else {
         debugPrint('💬 Loading PATIENT conversations for $userId');
         _conversations = await _chatService.getPatientConversations(userId);
@@ -101,6 +105,21 @@ class ChatViewModel extends ChangeNotifier {
     return conv;
   }
 
+  /// Create or get a conversation with a pharmacist (called from patient side).
+  Future<ConversationModel?> startPharmacistConversation(String pharmacistId) async {
+    final userId = _tokenService.userId;
+    if (userId == null) return null;
+
+    final conv = await _chatService.createPharmacistConversation(
+      patientId: userId,
+      pharmacistId: pharmacistId,
+    );
+    if (conv != null) {
+      await loadConversations();
+    }
+    return conv;
+  }
+
   // ── Messages ───────────────────────────────────────────────────
 
   /// Open a conversation: load messages + mark as read + start polling.
@@ -124,11 +143,14 @@ class ChatViewModel extends ChangeNotifier {
               id: c.id,
               doctorId: c.doctorId,
               doctorName: c.doctorName,
+              pharmacistId: c.pharmacistId,
+              pharmacistName: c.pharmacistName,
               patientId: c.patientId,
               patientName: c.patientName,
               lastMessage: c.lastMessage,
               lastMessageTime: c.lastMessageTime,
               unreadCount: 0,
+              type: c.type,
             );
           }
           return c;
@@ -176,11 +198,14 @@ class ChatViewModel extends ChangeNotifier {
             id: c.id,
             doctorId: c.doctorId,
             doctorName: c.doctorName,
+            pharmacistId: c.pharmacistId,
+            pharmacistName: c.pharmacistName,
             patientId: c.patientId,
             patientName: c.patientName,
             lastMessage: content.length > 100 ? content.substring(0, 100) : content,
             lastMessageTime: DateTime.now(),
             unreadCount: 0,
+            type: c.type,
           );
         }
         return c;

@@ -21,6 +21,7 @@ class GlucoseDashboardScreen extends StatelessWidget {
     final patientVM = context.watch<PatientViewModel>();
     final patient = patientVM.patient;
     final latest = glucoseVM.latestReading;
+    final unit = glucoseVM.preferredUnit;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundPrimary,
@@ -84,12 +85,14 @@ class GlucoseDashboardScreen extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        latest != null ? '${latest.value.toInt()}' : '--',
+                                        latest != null
+                                            ? (unit == 'mmol/L' ? latest.valueInMmolL.toStringAsFixed(1) : '${latest.valueInMgDl.toInt()}')
+                                            : '--',
                                         style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white, height: 1),
                                       ),
-                                      const Padding(
-                                        padding: EdgeInsets.only(bottom: 8, left: 4),
-                                        child: Text('mg/dL', style: TextStyle(fontSize: 14, color: Colors.white70)),
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 8, left: 4),
+                                        child: Text(unit, style: const TextStyle(fontSize: 14, color: Colors.white70)),
                                       ),
                                     ],
                                   ),
@@ -111,7 +114,7 @@ class GlucoseDashboardScreen extends StatelessWidget {
                             // Min chart
                             SizedBox(
                               width: 120,
-                              child: GlucoseMinChart(readings: glucoseVM.weeklyReadings, height: 80),
+                              child: GlucoseMinChart(readings: glucoseVM.weeklyReadings, height: 80, displayUnit: unit),
                             ),
                           ],
                         ),
@@ -145,7 +148,7 @@ class GlucoseDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
                 children: [
-                  Expanded(child: _StatMiniCard(label: 'Moyenne', value: '${glucoseVM.averageGlucose.toInt()}', unit: 'mg/dL', color: AppColors.softGreen)),
+                  Expanded(child: _StatMiniCard(label: 'Moyenne', value: unit == 'mmol/L' ? glucoseVM.averageGlucose.toStringAsFixed(1) : '${glucoseVM.averageGlucose.toInt()}', unit: unit, color: AppColors.softGreen)),
                   const SizedBox(width: 10),
                   Expanded(child: _StatMiniCard(label: 'Temps cible', value: '${glucoseVM.timeInRange.toInt()}', unit: '%', color: AppColors.lightBlue)),
                   const SizedBox(width: 10),
@@ -185,11 +188,11 @@ class GlucoseDashboardScreen extends StatelessWidget {
                       children: [
                         Container(width: 12, height: 3, decoration: BoxDecoration(color: AppColors.statusWarning.withOpacity(0.4), borderRadius: BorderRadius.circular(2))),
                         const SizedBox(width: 6),
-                        Text('Zone cible: ${AppConstants.normalGlucoseMin.toInt()}-${AppConstants.normalGlucoseMax.toInt()} mg/dL', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                        Text('Zone cible: ${AppConstants.normalGlucoseMin.toInt()}-${AppConstants.normalGlucoseMax.toInt()} $unit', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    GlucoseChartWidget(readings: glucoseVM.weeklyReadings, height: 180),
+                    GlucoseChartWidget(readings: glucoseVM.weeklyReadings, height: 180, displayUnit: unit),
                   ],
                 ),
               ),
@@ -223,7 +226,7 @@ class GlucoseDashboardScreen extends StatelessWidget {
                   if (index >= readings.length || index >= 5) return null;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: GlucoseCard(reading: readings[index]),
+                    child: GlucoseCard(reading: readings[index], displayUnit: unit),
                   );
                 },
                 childCount: glucoseVM.readings.length.clamp(0, 5),

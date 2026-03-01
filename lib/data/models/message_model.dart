@@ -48,26 +48,30 @@ class ConversationModel {
   final String id;
   final String doctorId;
   final String doctorName;
+  final String pharmacistId;
+  final String pharmacistName;
   final String patientId;
   final String patientName;
   final String lastMessage;
   final DateTime lastMessageTime;
   final int unreadCount;
+  final String type; // 'doctor' or 'pharmacist'
 
   ConversationModel({
     required this.id,
     required this.doctorId,
     required this.doctorName,
+    this.pharmacistId = '',
+    this.pharmacistName = '',
     required this.patientId,
     required this.patientName,
     required this.lastMessage,
     required this.lastMessageTime,
     this.unreadCount = 0,
+    this.type = 'doctor',
   });
 
-  /// Parse from backend JSON — works for both patient & doctor conversations.
-  /// When fetched by a patient, doctorId is populated/expanded.
-  /// When fetched by a doctor, patientId is populated/expanded.
+  /// Parse from backend JSON — works for patient, doctor, and pharmacist conversations.
   factory ConversationModel.fromJson(Map<String, dynamic> json, {bool isDoctor = false}) {
     // Extract doctor info
     String doctorId = '';
@@ -80,6 +84,20 @@ class ConversationModel {
       doctorName = 'Dr. $prenom $nom'.trim();
     } else {
       doctorId = doctorField?.toString() ?? '';
+    }
+
+    // Extract pharmacist info
+    String pharmacistId = '';
+    String pharmacistName = '';
+    final pharmacistField = json['pharmacistId'];
+    if (pharmacistField is Map) {
+      pharmacistId = pharmacistField['_id']?.toString() ?? '';
+      final nom = pharmacistField['nom']?.toString() ?? '';
+      final prenom = pharmacistField['prenom']?.toString() ?? '';
+      final nomPharmacie = pharmacistField['nomPharmacie']?.toString() ?? '';
+      pharmacistName = nomPharmacie.isNotEmpty ? nomPharmacie : '$prenom $nom'.trim();
+    } else {
+      pharmacistId = pharmacistField?.toString() ?? '';
     }
 
     // Extract patient info
@@ -95,10 +113,14 @@ class ConversationModel {
       patientId = patientField?.toString() ?? '';
     }
 
+    final type = json['type']?.toString() ?? (pharmacistId.isNotEmpty && doctorId.isEmpty ? 'pharmacist' : 'doctor');
+
     return ConversationModel(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       doctorId: doctorId,
       doctorName: doctorName,
+      pharmacistId: pharmacistId,
+      pharmacistName: pharmacistName,
       patientId: patientId,
       patientName: patientName,
       lastMessage: json['lastMessage']?.toString() ?? '',
@@ -108,6 +130,29 @@ class ConversationModel {
               ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
               : DateTime.now(),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+      type: type,
     );
+  }
+
+  /// The "other" person's name depending on role context:
+  /// For patient: show doctor or pharmacist name
+  /// For doctor: show patient name
+  /// For pharmacist: show patient name
+  String displayNameFor(String role) {
+    final r = role.toLowerCase();
+    if (r == 'medecin') return patientName;
+    if (r == 'pharmacien') return patientName;
+    // patient: show doctor or pharmacist
+    if (type == 'pharmacist') return pharmacistName;
+    return doctorName;
+  }
+
+  /// The other person's ID for sending messages
+  String otherIdFor(String role) {
+    final r = role.toLowerCase();
+    if (r == 'medecin') return patientId;
+    if (r == 'pharmacien') return patientId;
+    if (type == 'pharmacist') return pharmacistId;
+    return doctorId;
   }
 }

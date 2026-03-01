@@ -8,12 +8,14 @@ class GlucoseChartWidget extends StatelessWidget {
   final List<GlucoseReading> readings;
   final double height;
   final bool showLabels;
+  final String displayUnit;
 
   const GlucoseChartWidget({
     super.key,
     required this.readings,
     this.height = 200,
     this.showLabels = true,
+    this.displayUnit = 'mg/dL',
   });
 
   @override
@@ -124,7 +126,7 @@ class GlucoseChartWidget extends StatelessWidget {
                 return spots.map((spot) {
                   final reading = readings[spot.x.toInt()];
                   return LineTooltipItem(
-                    '${reading.value.toInt()} mg/dL\n${DateFormat('HH:mm dd/MM').format(reading.timestamp)}',
+                    '${displayUnit == 'mmol/L' ? reading.valueInMmolL.toStringAsFixed(1) : reading.valueInMgDl.toInt()} $displayUnit\n${DateFormat('HH:mm dd/MM').format(reading.timestamp)}',
                     const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
                   );
                 }).toList();
@@ -140,15 +142,16 @@ class GlucoseChartWidget extends StatelessWidget {
 class GlucoseMinChart extends StatelessWidget {
   final List<GlucoseReading> readings;
   final double height;
+  final String displayUnit;
 
-  const GlucoseMinChart({super.key, required this.readings, this.height = 60});
+  const GlucoseMinChart({super.key, required this.readings, this.height = 60, this.displayUnit = 'mg/dL'});
 
   @override
   Widget build(BuildContext context) {
     if (readings.isEmpty) return SizedBox(height: height);
 
     final spots = readings.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.value);
+      return FlSpot(entry.key.toDouble(), entry.value.valueIn(displayUnit));
     }).toList();
 
     return SizedBox(

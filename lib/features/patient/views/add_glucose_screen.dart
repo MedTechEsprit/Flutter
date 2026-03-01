@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
-import 'package:diab_care/data/models/glucose_reading_model.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
-import 'package:uuid/uuid.dart';
 
 class AddGlucoseScreen extends StatefulWidget {
   const AddGlucoseScreen({super.key});
@@ -16,9 +14,12 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
   late TabController _tabController;
   final _valueController = TextEditingController();
   String _selectedType = 'fasting';
+  String _selectedUnit = 'mg/dL';
+  bool _isSaving = false;
   bool _isConnecting = false;
   bool _isConnected = false;
   double? _glucometerValue;
+  final _noteController = TextEditingController();
 
   final _types = [
     {'key': 'fasting', 'label': 'À jeun', 'icon': Icons.wb_sunny_outlined},
@@ -32,51 +33,75 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Use the preferred unit from viewmodel
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final vm = context.read<GlucoseViewModel>();
+      setState(() => _selectedUnit = vm.preferredUnit);
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _valueController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  void _saveManualReading() {
+  Future<void> _saveManualReading() async {
     final value = double.tryParse(_valueController.text);
     if (value == null || value <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez entrer une valeur valide')));
       return;
     }
-    final reading = GlucoseReading(
-      id: const Uuid().v4(),
-      patientId: 'P001',
+
+    setState(() => _isSaving = true);
+    final vm = context.read<GlucoseViewModel>();
+    final success = await vm.addReadingToApi(
       value: value,
-      timestamp: DateTime.now(),
-      type: _selectedType,
-      source: 'manual',
+      period: _selectedType,
+      unit: _selectedUnit,
+      note: _noteController.text,
     );
-    context.read<GlucoseViewModel>().addReading(reading);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: const Text('Mesure enregistrée avec succès'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-    );
+    setState(() => _isSaving = false);
+
+    if (!mounted) return;
+    if (success) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Mesure enregistrée avec succès'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erreur lors de l\'enregistrement'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      );
+    }
   }
 
-  void _saveGlucometerReading() {
+  Future<void> _saveGlucometerReading() async {
     if (_glucometerValue == null) return;
-    final reading = GlucoseReading(
-      id: const Uuid().v4(),
-      patientId: 'P001',
+
+    setState(() => _isSaving = true);
+    final vm = context.read<GlucoseViewModel>();
+    final success = await vm.addReadingToApi(
       value: _glucometerValue!,
-      timestamp: DateTime.now(),
-      type: _selectedType,
-      source: 'glucometer',
+      period: _selectedType,
+      unit: _selectedUnit,
+      note: 'Glucomètre',
     );
-    context.read<GlucoseViewModel>().addReading(reading);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: const Text('Mesure du glucomètre enregistrée'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-    );
+    setState(() => _isSaving = false);
+
+    if (!mounted) return;
+    if (success) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Mesure du glucomètre enregistrée'), backgroundColor: AppColors.statusGood, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erreur lors de l\'enregistrement'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      );
+    }
   }
 
   Future<void> _simulateGlucometerConnection() async {
@@ -144,7 +169,7 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
                       width: 150,
                       child: TextField(
                         controller: _valueController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                         decoration: const InputDecoration(
@@ -154,7 +179,9 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
                         ),
                       ),
                     ),
-                    const Text('mg/dL', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
+                    const SizedBox(width: 8),
+                    // Unit Selector
+                    _buildUnitSelector(),
                   ],
                 ),
               ],
@@ -198,6 +225,23 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
               );
             }).toList(),
           ),
+          const SizedBox(height: 20),
+
+          // Note field
+          const Text('Note (optionnel)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _noteController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Ajouter une note...',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.softGreen)),
+            ),
+          ),
           const SizedBox(height: 32),
 
           // Save Button
@@ -205,9 +249,11 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
-              onPressed: _saveManualReading,
-              icon: const Icon(Icons.save_rounded),
-              label: const Text('Enregistrer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              onPressed: _isSaving ? null : _saveManualReading,
+              icon: _isSaving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.save_rounded),
+              label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.softGreen,
                 foregroundColor: Colors.white,
@@ -216,6 +262,36 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildUnitSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.softGreen.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.softGreen.withOpacity(0.3)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedUnit,
+          isDense: true,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.softGreen),
+          icon: const Icon(Icons.arrow_drop_down, color: AppColors.softGreen, size: 20),
+          items: const [
+            DropdownMenuItem(value: 'mg/dL', child: Text('mg/dL')),
+            DropdownMenuItem(value: 'mmol/L', child: Text('mmol/L')),
+          ],
+          onChanged: (val) {
+            if (val != null) {
+              setState(() => _selectedUnit = val);
+              // Also update preferred unit in viewmodel
+              context.read<GlucoseViewModel>().setPreferredUnit(val);
+            }
+          },
+        ),
       ),
     );
   }
@@ -276,7 +352,7 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
                 if (_isConnected && _glucometerValue != null) ...[
                   const SizedBox(height: 24),
                   Text(
-                    '${_glucometerValue!.toInt()} mg/dL',
+                    '${_glucometerValue!.toInt()} $_selectedUnit',
                     style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: AppColors.softGreen),
                   ),
                 ],
@@ -338,9 +414,11 @@ class _AddGlucoseScreenState extends State<AddGlucoseScreen> with SingleTickerPr
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: _saveGlucometerReading,
-                icon: const Icon(Icons.save_rounded),
-                label: const Text('Enregistrer la mesure', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                onPressed: _isSaving ? null : _saveGlucometerReading,
+                icon: _isSaving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.save_rounded),
+                label: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer la mesure', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.softGreen,
                   foregroundColor: Colors.white,

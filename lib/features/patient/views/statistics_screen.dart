@@ -65,7 +65,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             // Summary Cards
             Row(
               children: [
-                Expanded(child: _SummaryCard(title: 'Moyenne', value: '${vm.averageGlucose.toInt()}', unit: 'mg/dL', icon: Icons.show_chart, color: AppColors.softGreen)),
+                Expanded(child: _SummaryCard(title: 'Moyenne', value: vm.preferredUnit == 'mmol/L' ? vm.averageGlucose.toStringAsFixed(1) : '${vm.averageGlucose.toInt()}', unit: vm.preferredUnit, icon: Icons.show_chart, color: AppColors.softGreen)),
                 const SizedBox(width: 12),
                 Expanded(child: _SummaryCard(title: 'Temps cible', value: '${vm.timeInRange.toInt()}%', unit: '70-180', icon: Icons.gps_fixed, color: AppColors.lightBlue)),
               ],
@@ -73,9 +73,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _SummaryCard(title: 'Min', value: '${vm.minGlucose.toInt()}', unit: 'mg/dL', icon: Icons.arrow_downward, color: AppColors.statusWarning)),
+                Expanded(child: _SummaryCard(title: 'Min', value: vm.preferredUnit == 'mmol/L' ? vm.minGlucose.toStringAsFixed(1) : '${vm.minGlucose.toInt()}', unit: vm.preferredUnit, icon: Icons.arrow_downward, color: AppColors.statusWarning)),
                 const SizedBox(width: 12),
-                Expanded(child: _SummaryCard(title: 'Max', value: '${vm.maxGlucose.toInt()}', unit: 'mg/dL', icon: Icons.arrow_upward, color: AppColors.statusCritical)),
+                Expanded(child: _SummaryCard(title: 'Max', value: vm.preferredUnit == 'mmol/L' ? vm.maxGlucose.toStringAsFixed(1) : '${vm.maxGlucose.toInt()}', unit: vm.preferredUnit, icon: Icons.arrow_upward, color: AppColors.statusCritical)),
               ],
             ),
             const SizedBox(height: 24),
@@ -83,7 +83,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             // Trend Chart
             _Section(
               title: 'Tendance glycémique',
-              child: GlucoseChartWidget(readings: vm.weeklyReadings, height: 220),
+              child: GlucoseChartWidget(readings: vm.weeklyReadings, height: 220, displayUnit: vm.preferredUnit),
             ),
             const SizedBox(height: 20),
 

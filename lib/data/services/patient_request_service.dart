@@ -180,5 +180,118 @@ class PatientRequestService {
       throw _handleError(e);
     }
   }
-}
 
+  // 4. POST /api/patients/:patientId/request-doctor - Create patient request to doctor
+  Future<bool> createPatientRequest({
+    required String patientId,
+    required String doctorId,
+    String? urgentNote,
+  }) async {
+    try {
+      print('📤 [PatientRequestService] createPatientRequest');
+      print('   Patient ID: $patientId → Doctor ID: $doctorId');
+
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl/api/patients/$patientId/request-doctor');
+
+      final body = <String, dynamic>{'doctorId': doctorId};
+      if (urgentNote != null && urgentNote.isNotEmpty) {
+        body['urgentNote'] = urgentNote;
+      }
+
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(body),
+      ).timeout(_timeout);
+
+      print('   Response status: ${response.statusCode}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('✅ Patient request created');
+        return true;
+      } else {
+        final error = jsonDecode(response.body);
+        final msg = error['message'] ?? 'Failed to create request';
+        print('❌ $msg');
+        throw Exception(msg);
+      }
+    } catch (e) {
+      print('❌ Error creating patient request: $e');
+      throw _handleError(e);
+    }
+  }
+
+  // 5. GET /api/patients/:patientId/my-requests - Get patient's sent requests
+  Future<List<Map<String, dynamic>>> getMyRequests(String patientId) async {
+    try {
+      print('📋 [PatientRequestService] getMyRequests for $patientId');
+
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl/api/patients/$patientId/my-requests');
+
+      final response = await http.get(uri, headers: headers).timeout(_timeout);
+
+      print('   Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print('✅ Got ${data.length} requests');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw Exception('Failed to load requests');
+      }
+    } catch (e) {
+      print('❌ Error loading my requests: $e');
+      throw _handleError(e);
+    }
+  }
+
+  // 6. GET /api/glucose/patient/:patientId/records - Get patient glucose records (doctor)
+  Future<List<Map<String, dynamic>>> getPatientGlucoseRecords(String patientId) async {
+    try {
+      print('📊 [PatientRequestService] getPatientGlucoseRecords for $patientId');
+
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl/api/glucose/patient/$patientId/records?page=1&limit=100');
+
+      final response = await http.get(uri, headers: headers).timeout(_timeout);
+
+      print('   Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List<dynamic> data = body['data'] ?? [];
+        print('✅ Got ${data.length} glucose records');
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('❌ Error loading glucose records: $e');
+      return [];
+    }
+  }
+
+  // 7. GET /api/patients/:id - Get patient full profile (doctor)
+  Future<Map<String, dynamic>?> getPatientProfile(String patientId) async {
+    try {
+      print('👤 [PatientRequestService] getPatientProfile for $patientId');
+
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl/api/patients/$patientId');
+
+      final response = await http.get(uri, headers: headers).timeout(_timeout);
+
+      print('   Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('❌ Error loading patient profile: $e');
+      return null;
+    }
+  }}

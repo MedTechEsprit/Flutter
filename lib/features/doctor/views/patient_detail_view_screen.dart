@@ -1,19 +1,22 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
-import 'patient_medical_report_screen.dart';
+import 'package:diab_care/data/services/patient_request_service.dart';
+import 'package:intl/intl.dart';
 
 class PatientDetailViewScreen extends StatefulWidget {
+  final String patientId;
   final String patientName;
-  final int age;
-  final String diabetesType;
-  final String status;
+  final int? age;
+  final String? diabetesType;
+  final String? status;
 
   const PatientDetailViewScreen({
     super.key,
+    required this.patientId,
     required this.patientName,
-    required this.age,
-    required this.diabetesType,
-    required this.status,
+    this.age,
+    this.diabetesType,
+    this.status,
   });
 
   @override
@@ -22,11 +25,17 @@ class PatientDetailViewScreen extends StatefulWidget {
 
 class _PatientDetailViewScreenState extends State<PatientDetailViewScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _service = PatientRequestService();
+
+  Map<String, dynamic>? _profile;
+  List<Map<String, dynamic>> _glucoseRecords = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadData();
   }
 
   @override
@@ -35,618 +44,467 @@ class _PatientDetailViewScreenState extends State<PatientDetailViewScreen> with 
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final results = await Future.wait([
+        _service.getPatientProfile(widget.patientId),
+        _service.getPatientGlucoseRecords(widget.patientId),
+      ]);
+      if (mounted) {
+        setState(() {
+          _profile = results[0] as Map<String, dynamic>?;
+          _glucoseRecords = (results[1] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _getAge() {
+    if (widget.age != null) return '${widget.age} ans';
+    final dob = _profile?['dateNaissance'];
+    if (dob == null) return '-';
+    final d = DateTime.tryParse(dob.toString());
+    if (d == null) return '-';
+    final now = DateTime.now();
+    int age = now.year - d.year;
+    if (now.month < d.month || (now.month == d.month && now.day < d.day)) age--;
+    return '$age ans';
+  }
+
   @override
   Widget build(BuildContext context) {
-    Color statusColor = widget.status == 'Critical'
+    final statusText = widget.status ?? 'Stable';
+    Color statusColor = statusText.toLowerCase() == 'critical'
         ? const Color(0xFFFF6B6B)
-        : widget.status == 'Attention'
+        : statusText.toLowerCase() == 'attention'
             ? const Color(0xFFFFB347)
             : const Color(0xFF48BB78);
 
+    final diabType = widget.diabetesType ?? _profile?['typeDiabete'] ?? '-';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F9F8),
-      body: Column(
-        children: [
-          // Gradient Header
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF7DDAB9),
-                  Color(0xFF9BC4E2),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.softGreen))
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.mainGradient,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                                const Expanded(
+                                  child: Text('Details du patient', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                ),
+                                const SizedBox(width: 48),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Colors.white,
+                              child: Text(
+                                widget.patientName.length >= 2 ? widget.patientName.substring(0, 2).toUpperCase() : widget.patientName.toUpperCase(),
+                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.softGreen),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(widget.patientName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            Text('${_getAge()} - $diabType', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
+                              child: Text(statusText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMetricsRow(),
+                  const SizedBox(height: 16),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                    child: TabBar(
+                      controller: _tabController,
+                      labelColor: AppColors.softGreen,
+                      unselectedLabelColor: AppColors.textSecondary,
+                      indicator: BoxDecoration(color: AppColors.softGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
+                      dividerColor: Colors.transparent,
+                      tabs: const [
+                        Tab(text: 'Glycemie'),
+                        Tab(text: 'Profil medical'),
+                        Tab(text: 'Infos'),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 500,
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildGlucoseTab(),
+                        _buildMedicalProfileTab(),
+                        _buildInfoTab(),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(32),
-              ),
             ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
+    );
+  }
+
+  Widget _buildMetricsRow() {
+    double avg = 0, lastVal = 0;
+    if (_glucoseRecords.isNotEmpty) {
+      final values = _glucoseRecords.map((r) => (r['value'] as num?)?.toDouble() ?? 0).toList();
+      avg = values.reduce((a, b) => a + b) / values.length;
+      lastVal = values.first;
+    }
+    final groupeSanguin = _profile?['groupeSanguin'] ?? (_profile?['profilMedical'] as Map<String, dynamic>?)?['groupeSanguin'] ?? '-';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(child: _MetricCard(title: 'Derniere glycemie', value: lastVal > 0 ? '${lastVal.toInt()}' : '-', unit: 'mg/dL', color: AppColors.softGreen)),
+          const SizedBox(width: 10),
+          Expanded(child: _MetricCard(title: 'Moyenne', value: avg > 0 ? '${avg.toInt()}' : '-', unit: 'mg/dL', color: AppColors.lightBlue)),
+          const SizedBox(width: 10),
+          Expanded(child: _MetricCard(title: 'Groupe sanguin', value: groupeSanguin.toString(), unit: '', color: const Color(0xFF9B51E0))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlucoseTab() {
+    if (_glucoseRecords.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.show_chart, size: 60, color: AppColors.textMuted),
+            SizedBox(height: 8),
+            Text('Aucune mesure de glycemie', style: TextStyle(color: AppColors.textMuted, fontSize: 15)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: _glucoseRecords.length.clamp(0, 30),
+      itemBuilder: (ctx, i) {
+        final r = _glucoseRecords[i];
+        final value = (r['value'] as num?)?.toDouble() ?? 0;
+        final unit = r['unit']?.toString() ?? 'mg/dL';
+        final date = DateTime.tryParse(r['measuredAt']?.toString() ?? '') ?? DateTime.now();
+        final period = r['period']?.toString() ?? '';
+        final note = r['note']?.toString();
+        final mgdl = unit == 'mmol/L' ? value * 18.0182 : value;
+        final color = mgdl < 70
+            ? const Color(0xFFFFB347)
+            : mgdl > 180
+                ? const Color(0xFFFF6B6B)
+                : const Color(0xFF48BB78);
+        final statusLabel = mgdl < 70 ? 'Bas' : mgdl <= 180 ? 'Normal' : 'Eleve';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)],
+          ),
+          child: Row(
+            children: [
+              Container(width: 4, height: 44, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // App Bar Row
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Patient Details',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                          onPressed: () {},
+                        Text(value.toStringAsFixed(unit == 'mmol/L' ? 1 : 0), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+                        const SizedBox(width: 4),
+                        Text(unit, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+                          child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-
-                    // Patient Avatar
+                    if (note != null && note.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(note, style: const TextStyle(fontSize: 11, color: AppColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (period.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: CircleAvatar(
-                        radius: 45,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          widget.patientName.substring(0, 2).toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF7DDAB9),
-                          ),
-                        ),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.softGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text(_periodLabel(period), style: const TextStyle(fontSize: 10, color: AppColors.softGreen, fontWeight: FontWeight.w500)),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Patient Name
-                    Text(
-                      widget.patientName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${widget.age} years • male • ${widget.diabetesType}',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        widget.status == 'Critical' ? 'High Risk' :
-                        widget.status == 'Attention' ? 'Medium Risk' : 'Low Risk',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Action Buttons
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.call,
-                    label: 'Call',
-                    color: const Color(0xFF7DDAB9),
-                    onTap: () {},
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.message_outlined,
-                    label: 'Message',
-                    color: const Color(0xFF9BC4E2),
-                    onTap: () {},
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Current Metrics Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Current Metrics',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'Glucose',
-                        value: '185',
-                        unit: 'mg/dL',
-                        color: AppColors.softGreen,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'HbA1c',
-                        value: '7.8',
-                        unit: '%',
-                        subtitle: '3 month avg',
-                        color: AppColors.lightBlue,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'BMI',
-                        value: '29',
-                        unit: 'kg/kg',
-                        color: Color(0xFF9B51E0),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'Height',
-                        value: '178',
-                        unit: 'cm',
-                        color: AppColors.softOrange,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Tab Bar
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppColors.softGreen,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicator: BoxDecoration(
-                color: AppColors.softGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: 'Chart'),
-                Tab(text: 'Info'),
-                Tab(text: 'Notes'),
-              ],
-            ),
-          ),
-
-          // Tab View
-          Container(
-            height: 500, // Fixed height for scrollable content
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildChartTab(),
-                _buildInfoTab(),
-                _buildNotesTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetricCard({
-    required String title,
-    required String value,
-    required String unit,
-    String? subtitle,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: color.withOpacity(0.7),
-                  ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(DateFormat('dd/MM HH:mm').format(date), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ],
               ),
             ],
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textLight,
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildChartTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '14-Day Glucose Trend',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            height: 200,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.softGreen.withOpacity(0.3),
-                    AppColors.softGreen.withOpacity(0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.show_chart, size: 48, color: AppColors.softGreen),
-                    SizedBox(height: 8),
-                    Text('14-Day Glucose Trend Chart'),
-                    Text(
-                      'Range: 105-140 mg/dL',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+  String _periodLabel(String p) {
+    switch (p) {
+      case 'fasting': return 'A jeun';
+      case 'before_meal': return 'Avant repas';
+      case 'after_meal': return 'Apres repas';
+      case 'bedtime': return 'Coucher';
+      default: return p;
+    }
+  }
 
-          // View Medical Report Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PatientMedicalReportScreen(
-                      patientName: widget.patientName,
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.description_outlined),
-              label: const Text('View Full Medical Report'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.softGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+  Widget _buildMedicalProfileTab() {
+    final pm = (_profile?['profilMedical'] as Map<String, dynamic>?) ?? {};
+    if (pm.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.medical_information, size: 60, color: AppColors.textMuted),
+            SizedBox(height: 8),
+            Text('Profil medical non renseigne', style: TextStyle(color: AppColors.textMuted, fontSize: 15)),
+          ],
+        ),
+      );
+    }
+
+    final labels = <String, String>{
+      'taille': 'Taille (cm)',
+      'poids': 'Poids (kg)',
+      'imc': 'IMC',
+      'tensionArterielle': 'Tension arterielle',
+      'frequenceCardiaque': 'Frequence cardiaque',
+      'dateDecouverte': 'Date de decouverte',
+      'antecedentsFamiliaux': 'Antecedents familiaux',
+      'allergies': 'Allergies',
+      'maladiesChroniques': 'Maladies chroniques',
+      'fumeur': 'Fumeur',
+      'alcool': 'Alcool',
+      'activitePhysique': 'Activite physique',
+      'traitementActuel': 'Traitement actuel',
+      'insulinotherapie': 'Insulinotherapie',
+      'pompeInsuline': 'Pompe a insuline',
+      'glycemieAJeunMoyenne': 'Glycemie a jeun moy.',
+      'hba1c': 'HbA1c',
+      'objectifGlycemieMin': 'Objectif min',
+      'objectifGlycemieMax': 'Objectif max',
+      'complicationsConnues': 'Complications connues',
+    };
+    final rows = <MapEntry<String, String>>[];
+    for (final e in labels.entries) {
+      final v = pm[e.key];
+      if (v != null && v.toString().isNotEmpty && v.toString() != 'null') {
+        String display = v.toString();
+        if (v is bool) display = v ? 'Oui' : 'Non';
+        if (v is List) display = v.join(', ');
+        rows.add(MapEntry(e.value, display));
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.medical_information, color: AppColors.softGreen, size: 20),
+                  SizedBox(width: 8),
+                  Text('Profil medical', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
               ),
-            ),
+              const SizedBox(height: 12),
+              ...rows.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 160, child: Text(e.key, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
+                    Expanded(child: Text(e.value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                  ],
+                ),
+              )),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildInfoTab() {
-    return SingleChildScrollView(
+    final p = _profile ?? {};
+    final pm = (p['profilMedical'] as Map<String, dynamic>?) ?? {};
+    return ListView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoSection(
-            'Personal Information',
-            [
-              _buildInfoRow('Email', 'john.smith@email.com'),
-              _buildInfoRow('Phone', '+1 (555) 123-4567'),
-              _buildInfoRow('Blood Type', 'O+'),
-              _buildInfoRow('Date of Birth', 'Jan 15, 1979'),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.person, color: AppColors.softGreen, size: 20),
+                  SizedBox(width: 8),
+                  Text('Informations personnelles', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _infoRow('Nom', '${p['prenom'] ?? ''} ${p['nom'] ?? ''}'),
+              _infoRow('Email', p['email']?.toString() ?? '-'),
+              _infoRow('Telephone', p['telephone']?.toString() ?? '-'),
+              _infoRow('Date de naissance', _formatDate(p['dateNaissance'])),
+              _infoRow('Type de diabete', p['typeDiabete']?.toString() ?? '-'),
+              _infoRow('Groupe sanguin', (p['groupeSanguin'] ?? pm['groupeSanguin'])?.toString() ?? '-'),
+              _infoRow('Sexe', pm['sexe']?.toString() ?? '-'),
             ],
           ),
-          const SizedBox(height: 20),
-          _buildInfoSection(
-            'Current Medications',
-            [
-              _buildMedicationItem('Metformin', '500mg', 'Twice daily'),
-              _buildMedicationItem('Insulin Glargine', '10 units', 'Before bedtime'),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.call, size: 18),
+                label: const Text('Appeler'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.softGreen,
+                  side: const BorderSide(color: AppColors.softGreen),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.message, size: 18),
+                label: const Text('Message'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.lightBlue,
+                  side: const BorderSide(color: AppColors.lightBlue),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildNotesTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.note_add, color: AppColors.softGreen),
-                    SizedBox(width: 8),
-                    Text(
-                      'Add Note',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: 'Write your observations...',
-                    filled: true,
-                    fillColor: AppColors.background,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.softGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Save Note'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoSection(String title, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
+  Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          SizedBox(width: 140, child: Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
         ],
       ),
     );
   }
 
-  Widget _buildMedicationItem(String name, String dosage, String frequency) {
+  String _formatDate(dynamic d) {
+    if (d == null) return '-';
+    final date = DateTime.tryParse(d.toString());
+    if (date == null) return '-';
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String unit;
+  final Color color;
+
+  const _MetricCard({required this.title, required this.value, required this.unit, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.lightBlue.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.medication, color: AppColors.lightBlue, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+          Text(title, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Flexible(child: Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color, height: 1), overflow: TextOverflow.ellipsis)),
+              if (unit.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2, left: 2),
+                  child: Text(unit, style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.7))),
                 ),
-                Text(
-                  '$dosage • $frequency',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ],
       ),

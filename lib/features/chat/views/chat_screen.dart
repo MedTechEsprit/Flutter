@@ -12,8 +12,9 @@ import 'package:intl/intl.dart';
 class ConversationListScreen extends StatefulWidget {
   /// If true, shows patient names (doctor side). Otherwise doctor names.
   final bool isDoctor;
+  final bool isPharmacist;
 
-  const ConversationListScreen({super.key, this.isDoctor = false});
+  const ConversationListScreen({super.key, this.isDoctor = false, this.isPharmacist = false});
 
   @override
   State<ConversationListScreen> createState() => _ConversationListScreenState();
@@ -81,7 +82,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
             Text(
               widget.isDoctor
                   ? 'Les conversations avec vos patients apparaîtront ici'
-                  : 'Commencez une conversation avec un médecin',
+                  : widget.isPharmacist
+                      ? 'Les conversations avec vos patients apparaîtront ici'
+                      : 'Commencez une conversation avec un médecin',
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
               textAlign: TextAlign.center,
             ),
@@ -139,8 +142,11 @@ class _ConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show the OTHER person's name
-    final displayName = isDoctor ? conversation.patientName : conversation.doctorName;
+    // Show the OTHER person's name — use role-aware helper
+    final role = isDoctor ? 'medecin' : (conversation.type == 'pharmacist' && conversation.pharmacistId.isNotEmpty ? 'patient' : 'patient');
+    final displayName = isDoctor
+        ? conversation.patientName
+        : (conversation.type == 'pharmacist' ? conversation.pharmacistName : conversation.doctorName);
     final initial = displayName.isNotEmpty
         ? displayName.split(' ').last[0].toUpperCase()
         : '?';
@@ -337,9 +343,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (text.isEmpty) return;
 
     final vm = context.read<ChatViewModel>();
-    final receiverId = widget.isDoctor
-        ? widget.conversation.patientId
-        : widget.conversation.doctorId;
+    final currentRole = vm.currentUserRole ?? 'patient';
+    final receiverId = widget.conversation.otherIdFor(currentRole);
 
     _messageController.clear();
 
@@ -362,7 +367,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     final otherName = widget.isDoctor
         ? widget.conversation.patientName
-        : widget.conversation.doctorName;
+        : widget.conversation.type == 'pharmacist'
+            ? widget.conversation.pharmacistName
+            : widget.conversation.doctorName;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),

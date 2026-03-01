@@ -38,7 +38,7 @@ class ChatService {
       final response = await http.post(
         Uri.parse('$_baseUrl/conversations'),
         headers: headers,
-        body: jsonEncode({'patientId': patientId, 'doctorId': doctorId}),
+        body: jsonEncode({'patientId': patientId, 'doctorId': doctorId, 'type': 'doctor'}),
       ).timeout(const Duration(seconds: 15));
 
       debugPrint('📩 createConversation: ${response.statusCode}');
@@ -50,6 +50,32 @@ class ChatService {
       return null;
     } catch (e) {
       debugPrint('❌ createConversation exception: $e');
+      return null;
+    }
+  }
+
+  /// Create or get existing conversation between patient & pharmacist.
+  Future<ConversationModel?> createPharmacistConversation({
+    required String patientId,
+    required String pharmacistId,
+  }) async {
+    try {
+      final headers = await _authHeaders;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/conversations'),
+        headers: headers,
+        body: jsonEncode({'patientId': patientId, 'pharmacistId': pharmacistId, 'type': 'pharmacist'}),
+      ).timeout(const Duration(seconds: 15));
+
+      debugPrint('📩 createPharmacistConversation: ${response.statusCode}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return ConversationModel.fromJson(data);
+      }
+      debugPrint('❌ createPharmacistConversation error: ${response.body}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ createPharmacistConversation exception: $e');
       return null;
     }
   }
@@ -92,6 +118,27 @@ class ChatService {
       return [];
     } catch (e) {
       debugPrint('❌ getDoctorConversations: $e');
+      return [];
+    }
+  }
+
+  /// Get all conversations for a pharmacist (populates patient info).
+  Future<List<ConversationModel>> getPharmacistConversations(String pharmacistId) async {
+    try {
+      final headers = await _authHeaders;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/pharmacists/$pharmacistId/conversations'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 15));
+
+      debugPrint('📬 getPharmacistConversations: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((j) => ConversationModel.fromJson(j)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('❌ getPharmacistConversations: $e');
       return [];
     }
   }

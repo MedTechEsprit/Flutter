@@ -4,6 +4,9 @@ import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/app_text_styles.dart';
 import 'pharmacy_dashboard_screen.dart';
 import 'pharmacy_requests_screen.dart';
+import 'pharmacy_products_screen.dart';
+import 'pharmacy_orders_screen.dart';
+import 'package:diab_care/features/chat/views/chat_screen.dart';
 import 'pharmacy_profile_screen.dart';
 
 class PharmacyHomeScreen extends StatefulWidget {
@@ -19,6 +22,9 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
   final List<Widget> _screens = const [
     PharmacyDashboardScreen(),
     PharmacyRequestsScreen(),
+    PharmacyProductsScreen(),
+    PharmacyOrdersScreen(),
+    ConversationListScreen(isDoctor: false),
     PharmacyProfileScreen(),
   ];
 
@@ -42,13 +48,16 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
             elevation: 0,
             selectedItemColor: AppColors.primaryGreen,
             unselectedItemColor: AppColors.textMuted,
-            selectedFontSize: 12,
-            unselectedFontSize: 11,
-            iconSize: 26,
+            selectedFontSize: 10,
+            unselectedFontSize: 9,
+            iconSize: 24,
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), activeIcon: Icon(Icons.dashboard_rounded), label: 'Accueil'),
-              BottomNavigationBarItem(icon: Icon(Icons.list_alt_rounded), activeIcon: Icon(Icons.list_alt_rounded), label: 'Demandes'),
-              BottomNavigationBarItem(icon: Icon(Icons.person_rounded), activeIcon: Icon(Icons.person_rounded), label: 'Profil'),
+              BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Accueil'),
+              BottomNavigationBarItem(icon: Icon(Icons.list_alt_rounded), label: 'Demandes'),
+              BottomNavigationBarItem(icon: Icon(Icons.inventory_2_rounded), label: 'Produits'),
+              BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'Commandes'),
+              BottomNavigationBarItem(icon: Icon(Icons.chat_rounded), label: 'Chat'),
+              BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profil'),
             ],
           ),
         ),

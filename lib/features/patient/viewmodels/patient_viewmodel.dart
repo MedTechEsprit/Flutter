@@ -1,10 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:diab_care/data/models/user_model.dart';
 import 'package:diab_care/data/mock/mock_patient_data.dart';
+import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/features/auth/services/auth_service.dart';
 import 'package:diab_care/features/patient/services/patient_api_service.dart';
 
 class PatientViewModel extends ChangeNotifier {
   final PatientApiService _api = PatientApiService();
+  final TokenService _tokenService = TokenService();
 
   PatientModel? _patient;
   List<DoctorModel> _doctors = [];
@@ -22,16 +27,50 @@ class PatientViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Load mock patient profile (profile comes from auth)
-    _patient = MockPatientData.getCurrentPatient();
-
-    // Load real data from backend (await both in parallel)
+    // Load real patient profile + doctors + pharmacies in parallel
     await Future.wait([
+      _loadPatientProfileFromApi(),
       _loadDoctorsFromApi(),
       _loadPharmaciesFromApi(),
     ]);
 
     _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Fetch real patient profile from backend GET /api/patients/:id
+  Future<void> _loadPatientProfileFromApi() async {
+    try {
+      final userId = await _tokenService.getUserId();
+      final token = await _tokenService.getToken();
+      if (userId == null || token == null) {
+        debugPrint('⚠️ Cannot load patient profile: no userId/token');
+        _patient = MockPatientData.getCurrentPatient();
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('${AuthService.baseUrl}/api/patients/$userId'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _patient = PatientModel.fromJson(data);
+        debugPrint('✅ Patient profile loaded: ${_patient?.name}');
+      } else {
+        debugPrint('⚠️ Failed to load patient profile: ${response.statusCode}');
+        _patient = MockPatientData.getCurrentPatient();
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading patient profile: $e');
+      _patient = MockPatientData.getCurrentPatient();
+    }
+  }
+
+  /// Reload just the patient profile (e.g. after editing)
+  Future<void> refreshPatientProfile() async {
+    await _loadPatientProfileFromApi();
     notifyListeners();
   }
 

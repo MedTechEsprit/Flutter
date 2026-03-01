@@ -88,11 +88,18 @@ class AuthService {
 
   Future<AuthResponse> _register(String role, Map<String, dynamic> data) async {
     try {
+      final url = '$baseUrl/api/auth/register/$role';
+      final jsonBody = jsonEncode(data);
+      print('📤 REGISTER URL: $url');
+      print('📤 REGISTER JSON: $jsonBody');
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/register/$role'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(data),
+        body: jsonBody,
       ).timeout(_timeout);
+
+      print('📥 REGISTER STATUS: ${response.statusCode}');
+      print('📥 REGISTER RESPONSE: ${response.body.length > 300 ? response.body.substring(0, 300) : response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
