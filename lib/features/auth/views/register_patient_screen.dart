@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/services/token_service.dart';
 import 'package:diab_care/features/auth/services/auth_service.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:diab_care/features/pharmacy/views/pharmacy_location_picker_screen.dart';
 
 class RegisterPatientScreen extends StatefulWidget {
   const RegisterPatientScreen({super.key});
@@ -20,16 +26,17 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   final _emailController = TextEditingController();
   final _telephoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final _locationController = TextEditingController();
 
   DateTime? _dateNaissance;
   String? _selectedTypeDiabete;
   String? _selectedGroupeSanguin;
+  double? _latitude;
+  double? _longitude;
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  bool _agreeToTerms = false;
   bool _isLoading = false;
+  bool _isLocating = false;
   final _authService = AuthService();
 
   // ── Options ───────────────────────────────────────────────────
@@ -42,14 +49,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   };
 
   static const _groupeSanguinOptions = [
-    'A+',
-    'A-',
-    'B+',
-    'B-',
-    'AB+',
-    'AB-',
-    'O+',
-    'O-',
+    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
   ];
 
   @override
@@ -59,7 +59,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     _emailController.dispose();
     _telephoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -74,12 +74,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.softGreen,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: AppColors.textPrimary,
-            ),
+            colorScheme: const ColorScheme.light(primary: AppColors.softGreen, onPrimary: Colors.white, surface: Colors.white, onSurface: AppColors.textPrimary),
           ),
           child: child!,
         );
@@ -90,8 +85,18 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_agreeToTerms) {
-      _showError('Please agree to Terms & Condition');
+
+    // Validate dropdowns
+    if (_selectedTypeDiabete == null) {
+      _showError('Veuillez sélectionner le type de diabète');
+      return;
+    }
+    if (_selectedGroupeSanguin == null) {
+      _showError('Veuillez sélectionner le groupe sanguin');
+      return;
+    }
+    if (_dateNaissance == null) {
+      _showError('Veuillez sélectionner la date de naissance');
       return;
     }
 
@@ -103,9 +108,16 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       'email': _emailController.text.trim(),
       'motDePasse': _passwordController.text,
       'telephone': _telephoneController.text.trim(),
-      'dateNaissance': DateTime.now().toIso8601String(),
-      'typeDiabete': 'TYPE_1',
-      'groupeSanguin': 'O+',
+      'dateNaissance': _dateNaissance!.toIso8601String(),
+      'typeDiabete': _selectedTypeDiabete,
+      'groupeSanguin': _selectedGroupeSanguin,
+      if (_latitude != null) 'latitude': _latitude,
+      if (_longitude != null) 'longitude': _longitude,
+      if (_latitude != null && _longitude != null)
+        'location': {
+          'type': 'Point',
+          'coordinates': [_longitude, _latitude],
+        },
     };
 
     debugPrint('📤 REGISTER BODY: $body');
@@ -129,230 +141,341 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful!'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('Inscription réussie! Bienvenue!'), backgroundColor: Colors.green),
       );
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/medical-profile',
-        (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/medical-profile', (route) => false);
     } else {
-      _showError(response.errorMessage ?? 'Registration error');
+      _showError(response.errorMessage ?? 'Erreur lors de l\'inscription');
     }
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+  }
+
+  Future<void> _choosePatientLocation() async {
+    if (_isLocating) return;
+
+    final initial = (_latitude != null && _longitude != null)
+        ? LatLng(_latitude!, _longitude!)
+        : const LatLng(36.8065, 10.1815);
+
+    final picked = await Navigator.push<PharmacyLocationPickerResult>(
       context,
-    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+      MaterialPageRoute(
+        builder: (_) => PharmacyLocationPickerScreen(
+          initialLocation: initial,
+          title: 'Choisir votre position',
+          showAutoButton: false,
+          confirmButtonLabel: 'Valider ma position',
+          markerTitle: 'Votre position',
+          positionLabel: 'Lat',
+        ),
+      ),
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _latitude = picked.latitude;
+      _longitude = picked.longitude;
+    });
+
+    await _fillAddressFromCoordinates(
+      latitude: picked.latitude,
+      longitude: picked.longitude,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Position patient enregistrée.'),
+        backgroundColor: AppColors.softGreen,
+      ),
+    );
+  }
+
+  Future<void> _fillAddressFromCoordinates({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(latitude, longitude)
+          .timeout(const Duration(seconds: 8));
+      if (placemarks.isEmpty) return;
+
+      final place = placemarks.first;
+      final parts = [
+        place.street,
+        place.subLocality,
+        place.locality,
+        place.administrativeArea,
+        place.postalCode,
+        place.country,
+      ].where((p) => p != null && p!.trim().isNotEmpty).map((p) => p!.trim());
+
+      final address = parts.join(', ');
+      if (address.isEmpty || !mounted) return;
+
+      setState(() {
+        _locationController.text = address;
+      });
+    } catch (_) {
+      // Manual selection still works without reverse geocoding.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const brand = Color(0xFF50C2CA);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F1F1),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFB7E4E9),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(42),
-                  bottomRight: Radius.circular(120),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.black87,
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  Image.asset('assets/logo/logo_withoutname.png', height: 64),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'DiabCare',
-                    style: TextStyle(
-                      fontSize: 26,
-                      color: Color(0xFF50C2CA),
-                      fontStyle: FontStyle.italic,
-                      fontWeight: FontWeight.w800,
-                      shadows: [
-                        Shadow(
-                          color: Color(0x33000000),
-                          offset: Offset(0, 2),
-                          blurRadius: 6,
-                        ),
-                      ],
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.mainGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // App bar
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                  ),
-                  const Text(
-                    'Register for free',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
+                    const Text('Inscription Patient', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const _StepIndicatorStep2(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      _buildTextField(
-                        controller: _nomController,
-                        label: 'First Name',
-                        icon: Icons.person_outline,
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'First name required'
-                            : null,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _prenomController,
-                        label: 'Last Name',
-                        icon: Icons.person,
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Last name required'
-                            : null,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _emailController,
-                        label: 'Email Address',
-                        icon: Icons.email,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Email required';
-                          }
-                          if (!v.contains('@')) return 'Invalid email';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        icon: Icons.lock,
-                        obscureText: _obscurePassword,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
-                        ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Password required';
-                          }
-                          if (v.length < 6) return 'Minimum 6 characters';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _confirmPasswordController,
-                        label: 'Confirm Password',
-                        icon: Icons.lock,
-                        obscureText: _obscureConfirmPassword,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureConfirmPassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscureConfirmPassword =
-                                !_obscureConfirmPassword,
-                          ),
-                        ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Confirm password required';
-                          }
-                          if (v != _passwordController.text) {
-                            return 'Passwords do not match';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Checkbox(
-                            value: _agreeToTerms,
-                            onChanged: (v) =>
-                                setState(() => _agreeToTerms = v ?? false),
+                          const SizedBox(height: 20),
+
+                          // ── Nom ────────────────────────────────
+                          _buildTextField(
+                            controller: _nomController,
+                            label: 'Nom',
+                            icon: Icons.person_outline,
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'Le nom est requis' : null,
                           ),
-                          Expanded(
-                            child: const Text(
-                              'Agree to our Terms & Condition',
-                              style: TextStyle(fontSize: 13),
+                          const SizedBox(height: 16),
+
+                          // ── Prénom ─────────────────────────────
+                          _buildTextField(
+                            controller: _prenomController,
+                            label: 'Prénom',
+                            icon: Icons.person,
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'Le prénom est requis' : null,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── Email ──────────────────────────────
+                          _buildTextField(
+                            controller: _emailController,
+                            label: 'Email',
+                            icon: Icons.email,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'L\'email est requis';
+                              if (!v.contains('@')) return 'Email invalide';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── Téléphone ──────────────────────────
+                          _buildTextField(
+                            controller: _telephoneController,
+                            label: 'Téléphone',
+                            icon: Icons.phone,
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── Mot de passe ───────────────────────
+                          _buildTextField(
+                            controller: _passwordController,
+                            label: 'Mot de passe',
+                            icon: Icons.lock,
+                            obscureText: _obscurePassword,
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Le mot de passe est requis';
+                              if (v.length < 6) return 'Minimum 6 caractères';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── Date de naissance ──────────────────
+                          GestureDetector(
+                            onTap: _pickDateNaissance,
+                            child: AbsorbPointer(
+                              child: TextFormField(
+                                decoration: InputDecoration(
+                                  labelText: 'Date de naissance',
+                                  prefixIcon: const Icon(Icons.cake, color: AppColors.softGreen),
+                                  suffixIcon: const Icon(Icons.calendar_today, color: AppColors.softGreen),
+                                  hintText: _dateNaissance != null
+                                      ? DateFormat('dd/MM/yyyy').format(_dateNaissance!)
+                                      : 'Sélectionner une date',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.softGreen, width: 2)),
+                                ),
+                                controller: TextEditingController(
+                                  text: _dateNaissance != null ? DateFormat('dd/MM/yyyy').format(_dateNaissance!) : '',
+                                ),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: brand,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
+                          const SizedBox(height: 16),
+
+                          // ── Type de diabète (dropdown) ─────────
+                          DropdownButtonFormField<String>(
+                            value: _selectedTypeDiabete,
+                            decoration: InputDecoration(
+                              labelText: 'Type de diabète',
+                              prefixIcon: const Icon(Icons.medical_information, color: AppColors.softGreen),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.softGreen, width: 2)),
                             ),
+                            items: _typeDiabeteOptions.entries
+                                .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                                .toList(),
+                            onChanged: (v) => setState(() => _selectedTypeDiabete = v),
+                            validator: (v) => v == null ? 'Requis' : null,
                           ),
-                          child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text(
-                                  'Sign Up',
+                          const SizedBox(height: 16),
+
+                          // ── Groupe sanguin (dropdown) ──────────
+                          DropdownButtonFormField<String>(
+                            value: _selectedGroupeSanguin,
+                            decoration: InputDecoration(
+                              labelText: 'Groupe sanguin',
+                              prefixIcon: const Icon(Icons.water_drop, color: AppColors.softGreen),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.softGreen, width: 2)),
+                            ),
+                            items: _groupeSanguinOptions
+                                .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                .toList(),
+                            onChanged: (v) => setState(() => _selectedGroupeSanguin = v),
+                            validator: (v) => v == null ? 'Requis' : null,
+                          ),
+                          const SizedBox(height: 32),
+
+                          _buildTextField(
+                            controller: _locationController,
+                            label: 'Localisation',
+                            icon: Icons.location_on,
+                            readOnly: true,
+                          ),
+                          const SizedBox(height: 12),
+
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.softGreen.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.softGreen.withOpacity(0.18),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Votre position de proximité',
                                   style: TextStyle(
-                                    fontSize: 16,
                                     fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
-                        ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Choisissez votre position manuellement sur la carte.',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _isLocating ? null : _choosePatientLocation,
+                                    icon: const Icon(Icons.map_rounded),
+                                    label: const Text('Choisir sur la carte'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.softGreen,
+                                      side: const BorderSide(
+                                        color: AppColors.softGreen,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _latitude != null && _longitude != null
+                                      ? 'Position enregistrée (${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)})'
+                                      : 'Position non définie pour le moment.',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Register Button ────────────────────
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _handleRegister,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.softGreen,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text('S\'inscrire', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -363,6 +486,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    bool readOnly = false,
     bool obscureText = false,
     Widget? suffixIcon,
     String? Function(String?)? validator,
@@ -370,60 +494,24 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      readOnly: readOnly,
       obscureText: obscureText,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF50C2CA)),
+        prefixIcon: Icon(icon, color: AppColors.softGreen),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black54),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF50C2CA), width: 2),
+          borderSide: const BorderSide(color: AppColors.softGreen, width: 2),
         ),
       ),
     );
   }
 }
 
-class _StepIndicatorStep2 extends StatelessWidget {
-  const _StepIndicatorStep2();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          'Step',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _circle(1),
-            Container(width: 60, height: 2, color: Colors.black),
-            _circle(2),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _circle(int n) {
-    return Container(
-      width: 28,
-      height: 28,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFB7E4E9),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.black, width: 1.2),
-      ),
-      child: Text('$n', style: const TextStyle(fontSize: 13)),
-    );
-  }
-}

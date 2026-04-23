@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:diab_care/core/widgets/animations.dart';
 
@@ -72,134 +73,213 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    const brand = Color(0xFF1C3FE8);
-    const secondary = Color(0xFF50C2CA);
-    final size = MediaQuery.of(context).size;
-    final scale = (size.width / 390).clamp(0.86, 1.04);
-    final headerHeight = (size.height * 0.36).clamp(230.0, 320.0);
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final topPadding = mediaQuery.padding.top;
+    final bottomPadding = mediaQuery.padding.bottom;
+    final safeHeight = screenHeight - topPadding - bottomPadding;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F1F1),
-      body: SafeArea(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(gradient: AppColors.mainGradient),
         child: Stack(
           children: [
-            Align(
-              alignment: Alignment.topCenter,
-              child: Container(
-                height: headerHeight,
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFB7E4E9),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(58),
-                    bottomRight: Radius.circular(160),
-                  ),
-                ),
-              ),
-            ),
-            Center(
+            // Decorative circles
+            Positioned(top: -30, right: -30, child: Container(
+              width: 140, height: 140,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.06)),
+            )),
+            Positioned(top: 60, right: 40, child: Container(
+              width: 50, height: 50,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.04)),
+            )),
+            Positioned(bottom: 100, left: -40, child: Container(
+              width: 120, height: 120,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.04)),
+            )),
+            Positioned(bottom: 200, right: -20, child: Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.03)),
+            )),
+            Positioned(top: 200, left: -20, child: Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.05)),
+            )),
+
+            SafeArea(
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 30 * scale,
-                  vertical: 14 * scale,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FadeInSlide(
-                      index: 0,
-                      child: AnimatedBuilder(
-                        animation: _pulseAnimation,
-                        builder: (context, child) => Transform.scale(
-                          scale: _pulseAnimation.value,
-                          child: child,
-                        ),
-                        child: Column(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: safeHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // ── Top section: Logo + tagline ──
+                        Column(
                           children: [
-                            Image.asset(
-                              'assets/logo/logo_withoutname.png',
-                              height: 86 * scale,
-                            ),
-                            SizedBox(height: 8 * scale),
-                            const _GradientBrandTitle(),
-                            SizedBox(height: 6 * scale),
-                            Text(
-                              'GIVING THE BEST ONLINE CARE SERVICE',
-                              style: TextStyle(
-                                color: const Color(0xFF464646),
-                                fontSize: 11 * scale,
-                                letterSpacing: 1.3,
-                                fontWeight: FontWeight.w600,
+                            SizedBox(height: safeHeight * 0.06),
+                            // Pulsing logo container
+                            FadeInSlide(
+                              index: 0,
+                              child: AnimatedBuilder(
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: _pulseAnimation.value,
+                                    child: child,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withOpacity(0.12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.1), width: 2),
+                                    boxShadow: [
+                                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 30, spreadRadius: 5),
+                                    ],
+                                  ),
+                                  child: Image.asset('assets/logo/logo_withname.png', height: 150),
+                                ),
                               ),
-                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            FadeInSlide(
+                              index: 1,
+                              child: Text(
+                                'Votre partenaire santé',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withOpacity(0.95),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            FadeInSlide(
+                              index: 2,
+                              child: Text(
+                                'Gérez votre diabète en toute simplicité',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.7),
+                                  height: 1.4,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                    SizedBox(height: 26 * scale),
-                    FadeInSlide(
-                      index: 1,
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50 * scale,
-                        child: ElevatedButton.icon(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/register-role'),
-                          icon: const Icon(
-                            Icons.person_add_alt_1_rounded,
-                            size: 18,
-                          ),
-                          label: Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              fontSize: 14 * scale,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: secondary,
-                            foregroundColor: Colors.white,
-                            elevation: 3,
-                            shadowColor: Colors.black.withValues(alpha: 0.16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
+
+                        // ── Middle section: Buttons ──
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 28),
+                          child: Column(
+                            children: [
+                              // Se connecter — glassmorphic white button
+                              FadeInSlide(
+                                index: 3,
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 58,
+                                  child: ElevatedButton(
+                                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: AppColors.primaryGreen,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                      elevation: 0,
+                                      shadowColor: Colors.transparent,
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.login_rounded, size: 22),
+                                        SizedBox(width: 10),
+                                        Text('Se connecter', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              // Créer un compte — outlined with glow
+                              FadeInSlide(
+                                index: 4,
+                                child: Container(
+                                  width: double.infinity,
+                                  height: 58,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.1), blurRadius: 16, spreadRadius: -2)],
+                                  ),
+                                  child: OutlinedButton(
+                                    onPressed: () => Navigator.pushNamed(context, '/register-role'),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: Colors.white.withOpacity(0.6), width: 2),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.person_add_alt_1_rounded, size: 22),
+                                        SizedBox(width: 10),
+                                        Text('Créer un compte', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ),
-                    SizedBox(height: 12 * scale),
-                    FadeInSlide(
-                      index: 2,
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50 * scale,
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/login'),
-                          icon: const Icon(Icons.login_rounded, size: 18),
-                          label: Text(
-                            'Sign In',
-                            style: TextStyle(
-                              fontSize: 14 * scale,
-                              fontWeight: FontWeight.w700,
+
+                        // ── Bottom section: Features + version ──
+                        Column(
+                          children: [
+                            // Divider
+                            Container(
+                              width: 60,
+                              height: 2,
+                              margin: const EdgeInsets.only(bottom: 24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [Colors.white.withOpacity(0.0), Colors.white.withOpacity(0.4), Colors.white.withOpacity(0.0)]),
+                                borderRadius: BorderRadius.circular(1),
+                              ),
                             ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: secondary,
-                              width: 1.6,
+                            // Features
+                            FadeInSlide(
+                              index: 5,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: const [
+                                  _FeatureIcon(icon: Icons.bloodtype_rounded, label: 'Glycémie'),
+                                  _FeatureIcon(icon: Icons.restaurant_rounded, label: 'Nutrition'),
+                                  _FeatureIcon(icon: Icons.medical_services_rounded, label: 'Médecins'),
+                                  _FeatureIcon(icon: Icons.local_pharmacy_rounded, label: 'Pharmacies'),
+                                ],
+                              ),
                             ),
-                            foregroundColor: secondary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
+                            const SizedBox(height: 24),
+                            Text(
+                              'v1.0.0 — DiabCare © 2025',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.4),
+                                fontSize: 12,
+                                letterSpacing: 0.3,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 16),
+                          ],
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -210,22 +290,27 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   }
 }
 
-class _GradientBrandTitle extends StatelessWidget {
-  const _GradientBrandTitle();
+class _FeatureIcon extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _FeatureIcon({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      'DiabCare',
-      style: TextStyle(
-        fontSize: 30,
-        fontStyle: FontStyle.italic,
-        fontWeight: FontWeight.w800,
-        color: Color(0xFF50C2CA),
-        shadows: [
-          Shadow(color: Color(0x33000000), offset: Offset(0, 2), blurRadius: 6),
-        ],
-      ),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Icon(icon, color: Colors.white, size: 26),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }
