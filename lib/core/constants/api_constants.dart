@@ -1,19 +1,19 @@
 class ApiConstants {
-    // Source unique d'URL backend.
-    // Emulateur Android Studio (run typique): 10.0.2.2 pointe vers localhost du PC.
-    // Telephone reel (sans Render): utilisez --dart-define=API_BASE_URL=http://<IP_PC_WIFI>:3000
-    static const String _defaultServerBaseUrl = 'http://10.0.2.2:3000';
-    static const String _serverBaseUrlFromEnv = String.fromEnvironment(
-        'API_BASE_URL',
-        defaultValue: _defaultServerBaseUrl,
-    );
+  // Source unique d'URL backend.
+  // Emulateur Android Studio (run typique): 10.0.2.2 pointe vers localhost du PC.
+  // Telephone reel (sans Render): utilisez --dart-define=API_BASE_URL=http://<IP_PC_WIFI>:3000
+  static const String _defaultServerBaseUrl = 'https://nestjs-mu65.onrender.com/';
+  static const String _serverBaseUrlFromEnv = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: _defaultServerBaseUrl,
+  );
 
-    static String get serverBaseUrl {
-        // Normalise pour éviter les doubles slashs quand on concatène avec /api.
-        return _serverBaseUrlFromEnv.endsWith('/')
-                ? _serverBaseUrlFromEnv.substring(0, _serverBaseUrlFromEnv.length - 1)
-                : _serverBaseUrlFromEnv;
-    }
+  static String get serverBaseUrl {
+    // Normalise pour éviter les doubles slashs quand on concatène avec /api.
+    return _serverBaseUrlFromEnv.endsWith('/')
+        ? _serverBaseUrlFromEnv.substring(0, _serverBaseUrlFromEnv.length - 1)
+        : _serverBaseUrlFromEnv;
+  }
 
   // Base API commune
   static String get baseUrl => '$serverBaseUrl/api';
@@ -101,10 +101,6 @@ class ApiConstants {
   // ─── Doctor Boost Endpoints (Medecin) ───
   static const String doctorBoostPlans = '/medecins/boost/plans';
   static const String doctorBoostMe = '/medecins/boost/me';
-  static const String doctorBoostCheckoutSession =
-      '/medecins/boost/checkout-session';
-  static const String doctorBoostVerifySession =
-      '/medecins/boost/verify-session';
   static const String doctorBoostVerifyLatest = '/medecins/boost/verify-latest';
   static String doctorBoostStatus(String doctorId) =>
       '/medecins/$doctorId/boost/status';
@@ -116,14 +112,6 @@ class ApiConstants {
   static const String aiPatternLatest = '/ai-pattern/latest';
   static const String aiPatternHistory = '/ai-pattern/history';
   static String aiPatternDetail(String id) => '/ai-pattern/$id';
-
-  // ─── Premium Subscription Endpoints (Patient) ───
-  static const String subscriptionMe = '/subscriptions/me';
-  static const String subscriptionCheckoutSession =
-      '/subscriptions/checkout-session';
-  static const String subscriptionVerifySession =
-      '/subscriptions/verify-session';
-  static const String subscriptionVerifyLatest = '/subscriptions/verify-latest';
 
   // Default Headers
   static Map<String, String> get defaultHeaders => {

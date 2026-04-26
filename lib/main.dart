@@ -8,6 +8,7 @@ import 'package:diab_care/core/theme/theme_provider.dart';
 import 'package:diab_care/core/services/notification_navigation_service.dart';
 import 'package:diab_care/core/services/push_notification_service.dart';
 import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/revenuecat_service.dart';
 import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/glucose_viewmodel.dart';
 import 'package:diab_care/features/patient/viewmodels/patient_viewmodel.dart';
@@ -34,6 +35,13 @@ void main() async {
 
   // Initialize TokenService before app starts
   await TokenService().init();
+
+  // Initialize RevenueCat early so entitlement checks are fast once screens open.
+  try {
+    await RevenueCatService().configureIfNeeded();
+  } catch (e) {
+    debugPrint('RevenueCat init skipped: $e');
+  }
 
   // Catch all errors
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -66,12 +74,14 @@ class _DiabCareAppState extends State<DiabCareApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) {
-          final authVM = AuthViewModel();
-          // Initialize auth state from storage
-          authVM.init();
-          return authVM;
-        }),
+        ChangeNotifierProvider(
+          create: (_) {
+            final authVM = AuthViewModel();
+            // Initialize auth state from storage
+            authVM.init();
+            return authVM;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => GlucoseViewModel()),
         ChangeNotifierProvider(create: (_) => PatientViewModel()),
         ChangeNotifierProvider(create: (_) => MealViewModel()),
@@ -86,16 +96,15 @@ class _DiabCareAppState extends State<DiabCareApp> {
             navigatorKey: NotificationNavigationService.instance.navigatorKey,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            themeMode: themeProvider.isDarkMode
+                ? ThemeMode.dark
+                : ThemeMode.light,
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
-              Locale('fr', 'FR'),
-              Locale('en', 'US'),
-            ],
+            supportedLocales: const [Locale('fr', 'FR'), Locale('en', 'US')],
             locale: const Locale('fr', 'FR'),
             initialRoute: '/',
             // Add error builder
@@ -109,11 +118,18 @@ class _DiabCareAppState extends State<DiabCareApp> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, size: 80, color: Colors.red),
+                          const Icon(
+                            Icons.error_outline,
+                            size: 80,
+                            color: Colors.red,
+                          ),
                           const SizedBox(height: 20),
                           const Text(
                             'Une erreur est survenue',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 10),
                           Text(
@@ -142,12 +158,15 @@ class _DiabCareAppState extends State<DiabCareApp> {
               '/register-role': (context) => const RegisterRoleScreen(),
               '/register-patient': (context) => const RegisterPatientScreen(),
               '/register-medecin': (context) => const RegisterMedecinScreen(),
-              '/register-pharmacien': (context) => const RegisterPharmacienScreen(),
+              '/register-pharmacien': (context) =>
+                  const RegisterPharmacienScreen(),
               '/patient-home': (context) => const PatientHomeScreen(),
-              '/medical-profile': (context) => const MedicalProfileFormScreen(isPostRegistration: true),
+              '/medical-profile': (context) =>
+                  const MedicalProfileFormScreen(isPostRegistration: true),
               '/doctor-home': (context) => const DoctorHomeScreen(),
               '/pharmacy-home': (context) => const PharmacyHomeScreen(),
-              '/notifications-inbox': (context) => const NotificationsInboxScreen(),
+              '/notifications-inbox': (context) =>
+                  const NotificationsInboxScreen(),
             },
           );
         },

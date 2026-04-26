@@ -1,7 +1,6 @@
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/data/services/subscription_service.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class PremiumSubscriptionScreen extends StatefulWidget {
   const PremiumSubscriptionScreen({super.key});
@@ -39,30 +38,12 @@ class _PremiumSubscriptionScreenState extends State<PremiumSubscriptionScreen> {
     }
   }
 
-  Future<void> _startCheckout() async {
+  Future<void> _startPurchase() async {
     setState(() => _paymentLoading = true);
     try {
-      final session = await _subscriptionService.createCheckoutSession();
-      final uri = Uri.parse(session.checkoutUrl);
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && mounted) {
-        _showError('Impossible d\'ouvrir Stripe Checkout');
-      }
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _paymentLoading = false);
-    }
-  }
-
-  Future<void> _verifyPayment() async {
-    setState(() => _verifyLoading = true);
-    try {
-      final status = await _subscriptionService.verifyLatestPayment();
+      final status = await _subscriptionService.purchasePremium();
       if (!mounted) return;
+
       setState(() => _status = status);
 
       if (status.isActive) {
@@ -73,8 +54,33 @@ class _PremiumSubscriptionScreenState extends State<PremiumSubscriptionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Paiement non confirmé pour le moment. Réessayez dans quelques secondes.',
+              'Achat terminé, mais abonnement non actif pour le moment.',
             ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _paymentLoading = false);
+    }
+  }
+
+  Future<void> _restorePurchases() async {
+    setState(() => _verifyLoading = true);
+    try {
+      final status = await _subscriptionService.restorePremiumPurchases();
+      if (!mounted) return;
+      setState(() => _status = status);
+
+      if (status.isActive) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Achats restaurés, abonnement actif ✅')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Aucun achat Premium actif trouvé sur ce compte.'),
           ),
         );
       }
@@ -195,7 +201,7 @@ class _PremiumSubscriptionScreenState extends State<PremiumSubscriptionScreen> {
                     )
                   else ...[
                     ElevatedButton.icon(
-                      onPressed: _paymentLoading ? null : _startCheckout,
+                      onPressed: _paymentLoading ? null : _startPurchase,
                       icon: _paymentLoading
                           ? const SizedBox(
                               height: 18,
@@ -208,7 +214,7 @@ class _PremiumSubscriptionScreenState extends State<PremiumSubscriptionScreen> {
                           : const Icon(Icons.lock_open_rounded),
                       label: Text(
                         _paymentLoading
-                            ? 'Ouverture du paiement...'
+                            ? 'Achat en cours...'
                             : 'Souscrire maintenant',
                       ),
                       style: ElevatedButton.styleFrom(
@@ -222,18 +228,18 @@ class _PremiumSubscriptionScreenState extends State<PremiumSubscriptionScreen> {
                     ),
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
-                      onPressed: _verifyLoading ? null : _verifyPayment,
+                      onPressed: _verifyLoading ? null : _restorePurchases,
                       icon: _verifyLoading
                           ? const SizedBox(
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.verified_rounded),
+                          : const Icon(Icons.restore_rounded),
                       label: Text(
                         _verifyLoading
                             ? 'Vérification...'
-                            : 'J\'ai payé, vérifier mon abonnement',
+                            : 'Restaurer mes achats',
                       ),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(50),

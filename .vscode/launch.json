@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "DiabCare Flutter",
+            "request": "launch",
+            "type": "dart",
+            "toolArgs": [
+                "--dart-define=REVENUECAT_ANDROID_API_KEY=goog_MLDEWiasFOmbGsRDDBXTvKPlPuu"
+            ]
+        }
+    ]
+}

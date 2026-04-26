@@ -11,7 +11,6 @@ import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:diab_care/features/notifications/views/notifications_inbox_screen.dart';
 import 'package:diab_care/data/services/doctor_service.dart';
 import 'package:diab_care/core/services/token_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -186,36 +185,28 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
 
     try {
       setState(() => _activatingBoostType = boostType);
-      final result = await _doctorService.createDoctorBoostCheckoutSession(
-        boostType,
-      );
+      final result = await _doctorService.purchaseDoctorBoost(boostType);
       if (!mounted) return;
 
-      final checkoutUrl = result['checkoutUrl']?.toString() ?? '';
-      if (checkoutUrl.isEmpty) {
-        throw Exception('URL de paiement Stripe indisponible');
-      }
+      setState(() {
+        _boostStatus = result;
+      });
 
-      final launched = await launchUrl(
-        Uri.parse(checkoutUrl),
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (!launched && mounted) {
-        throw Exception('Impossible d\'ouvrir Stripe Checkout');
-      }
-
-      if (!mounted) return;
-
-      final message =
-          'Paiement ouvert. Revenez puis cliquez sur "Vérifier mon paiement".';
+      final isActive = result['isActive'] == true;
+      final message = isActive
+          ? 'Boost activé ✅ Votre profil est maintenant suggéré.'
+          : 'Achat enregistré. Synchronisation de l\'activation en cours.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: AppColors.softGreen,
+          backgroundColor: isActive
+              ? AppColors.softGreen
+              : AppColors.accentBlue,
           behavior: SnackBarBehavior.floating,
         ),
       );
+
+      await _refreshBoostData();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,9 +241,11 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           content: Text(
             isActive
                 ? 'Boost activé ✅ Votre profil est maintenant suggéré.'
-                : 'Paiement non confirmé pour le moment. Réessayez dans quelques secondes.',
+                : 'Achat détecté, mais activation non confirmée pour le moment.',
           ),
-          backgroundColor: isActive ? AppColors.softGreen : AppColors.accentBlue,
+          backgroundColor: isActive
+              ? AppColors.softGreen
+              : AppColors.accentBlue,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -368,10 +361,10 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     try {
       await context.read<AuthViewModel>().logout();
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-        '/',
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pushNamedAndRemoveUntil('/', (route) => false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -833,7 +826,8 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const NotificationsInboxScreen(),
+                                builder: (_) =>
+                                    const NotificationsInboxScreen(),
                               ),
                             );
                           },
@@ -1207,7 +1201,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Payer'),
+                            : const Text('Acheter'),
                       ),
                     ],
                   ),
@@ -1227,9 +1221,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                   )
                 : const Icon(Icons.verified_rounded),
             label: Text(
-              _isBoostVerifying
-                  ? 'Vérification...'
-                  : 'J\'ai payé, vérifier mon paiement',
+              _isBoostVerifying ? 'Vérification...' : 'Synchroniser mes achats',
             ),
           ),
         ],

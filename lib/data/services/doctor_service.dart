@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
+import 'package:diab_care/core/constants/revenuecat_constants.dart';
 import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/revenuecat_service.dart';
 
 class DoctorService {
   String get baseUrl => ApiConstants.serverBaseUrl;
   final TokenService _tokenService = TokenService();
+  final RevenueCatService _revenueCatService = RevenueCatService();
   final Duration _timeout = const Duration(seconds: 30);
 
   Future<Map<String, String>> _getHeaders() async {
@@ -178,27 +181,26 @@ class DoctorService {
     }
   }
 
-  Future<Map<String, dynamic>> createDoctorBoostCheckoutSession(
-    String boostType,
-  ) async {
+  Future<Map<String, dynamic>> purchaseDoctorBoost(String boostType) async {
     try {
-      final headers = await _getHeaders();
-      final uri = Uri.parse('$baseUrl/api${ApiConstants.doctorBoostCheckoutSession}');
+      final packageId = _resolveBoostPackageId(boostType);
+      final customerInfo = await _revenueCatService.purchasePackageById(
+        packageId,
+      );
 
-      final response = await http
-          .post(
-            uri,
-            headers: headers,
-            body: jsonEncode({'boostType': boostType}),
-          )
-          .timeout(_timeout);
+      final hasBoostEntitlement = _revenueCatService.hasEntitlement(
+        customerInfo,
+        RevenueCatConstants.doctorBoostEntitlementId,
+      );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+      if (!hasBoostEntitlement) {
+        throw Exception(
+          'Achat terminé, mais entitlement boost non actif. '
+          'Vérifiez la configuration RevenueCat.',
+        );
       }
 
-      final error = jsonDecode(response.body);
-      throw Exception(error['message'] ?? 'Failed to create doctor boost checkout');
+      return verifyDoctorBoostLatestPayment();
     } catch (e) {
       throw Exception('Erreur: $e');
     }
@@ -207,7 +209,9 @@ class DoctorService {
   Future<Map<String, dynamic>> verifyDoctorBoostLatestPayment() async {
     try {
       final headers = await _getHeaders();
-      final uri = Uri.parse('$baseUrl/api${ApiConstants.doctorBoostVerifyLatest}');
+      final uri = Uri.parse(
+        '$baseUrl/api${ApiConstants.doctorBoostVerifyLatest}',
+      );
 
       final response = await http
           .post(uri, headers: headers, body: jsonEncode({}))
@@ -218,9 +222,38 @@ class DoctorService {
       }
 
       final error = jsonDecode(response.body);
-      throw Exception(error['message'] ?? 'Failed to verify doctor boost payment');
+      throw Exception(
+        error['message'] ?? 'Failed to verify doctor boost payment',
+      );
     } catch (e) {
       throw Exception('Erreur: $e');
+    }
+  }
+
+  String _resolveBoostPackageId(String boostType) {
+    final type = boostType.toLowerCase();
+    switch (type) {
+      case '24h':
+      case '24':
+      case 'day':
+      case 'daily':
+        return RevenueCatConstants.doctorBoost24hPackageId;
+      case 'week':
+      case 'weekly':
+      case '7d':
+      case 'boost_7d':
+        return RevenueCatConstants.doctorBoostWeekPackageId;
+      case '15d':
+      case 'boost_15d':
+        // Si tu as un ID spécifique pour 15 jours, utilise-le ici
+        return 'boost_15d'; 
+      case 'month':
+      case 'monthly':
+      case '30d':
+      case 'boost_30d':
+        return RevenueCatConstants.doctorBoostMonthPackageId;
+      default:
+        throw Exception('Type de boost inconnu: $boostType');
     }
   }
 
