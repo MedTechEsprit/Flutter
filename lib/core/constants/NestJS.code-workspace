@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../../NestJS"
+		},
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"claudeCodeChat.permissions.yoloMode": false
+	}
+}
