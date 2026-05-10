@@ -197,14 +197,8 @@ class _PharmacyLocationPickerScreenState
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(AppColors.cardRadius),
+                    boxShadow: AppColors.cardShadow,
                   ),
                   child: Text(
                     '${widget.positionLabel}: ${selected.latitude.toStringAsFixed(6)} • Lng: ${selected.longitude.toStringAsFixed(6)}',
@@ -233,7 +227,7 @@ class _PharmacyLocationPickerScreenState
                       backgroundColor: AppColors.softGreen,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(100),
                       ),
                     ),
                     icon: const Icon(Icons.check_rounded),

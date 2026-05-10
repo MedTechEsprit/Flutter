@@ -110,8 +110,8 @@ class _ProductCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+        color: Colors.white, borderRadius: BorderRadius.circular(AppColors.cardRadius),
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +273,7 @@ class _AddEditProductScreenState extends State<_AddEditProductScreen> {
             const SizedBox(height: 20),
             SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
               onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.softGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.softGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100))),
               child: _saving
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : Text(_isEdit ? 'Modifier' : 'Ajouter', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
@@ -291,9 +291,9 @@ class _AddEditProductScreenState extends State<_AddEditProductScreen> {
         controller: ctrl, maxLines: maxLines, keyboardType: keyboard, validator: validator,
         decoration: InputDecoration(
           labelText: label, filled: true, fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.softGreen)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppColors.inputRadius), borderSide: BorderSide(color: Colors.grey.shade300)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppColors.inputRadius), borderSide: BorderSide(color: Colors.grey.shade300)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppColors.inputRadius), borderSide: const BorderSide(color: AppColors.softGreen)),
         ),
       ),
     );

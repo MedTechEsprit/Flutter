@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:diab_care/core/theme/app_colors.dart';
 import 'package:diab_care/core/theme/app_text_styles.dart';
 import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
-import 'package:diab_care/features/pharmacy/widgets/boost_management_widget.dart';
 import 'package:diab_care/features/pharmacy/views/pharmacy_points_screen.dart';
 import 'package:diab_care/core/widgets/animations.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
@@ -54,7 +53,6 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
       _hasLoadedData = true;
       viewModel.loadDashboard();
       viewModel.loadAllRequests();
-      viewModel.loadActiveBoosts();
       _loadUnreadNotificationCount();
     }
   }
@@ -151,7 +149,6 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             onRefresh: () async {
               await viewModel.loadDashboard();
               await viewModel.loadAllRequests();
-              await viewModel.loadActiveBoosts();
               await _loadUnreadNotificationCount();
             },
             color: AppColors.primaryGreen,
@@ -173,11 +170,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                       children: [
                         const SizedBox(height: 16),
 
-                        // 🚀 SECTION BOOST
-                        FadeInSlide(
-                          index: 0,
-                          child: const BoostManagementWidget(),
-                        ),
+                        const SizedBox(height: 16),
                         const SizedBox(height: 20),
 
                         // STATISTIQUES PRINCIPALES
@@ -343,27 +336,19 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                         Row(
                           children: [
                             Container(
-                              width: 48,
-                              height: 48,
+                              width: 50,
+                              height: 50,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.white.withOpacity(0.3),
-                                    Colors.white.withOpacity(0.1),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.4),
-                                  width: 2,
-                                ),
+                                color: Colors.white.withOpacity(0.2),
+                                border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
                               ),
-                              child: const Icon(
-                                Icons.local_pharmacy_rounded,
-                                color: Colors.white,
-                                size: 22,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.local_pharmacy_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -371,20 +356,21 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Bonjour 👋',
+                                  'Tableau de bord',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withOpacity(0.85),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white.withOpacity(0.8),
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
                                 Text(
                                   pharmacyName,
                                   style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
                                     color: Colors.white,
-                                    letterSpacing: 0.3,
+                                    letterSpacing: -0.5,
                                   ),
                                 ),
                               ],
@@ -394,7 +380,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                         Row(
                           children: [
                             _GlassIconButton(
-                              icon: Icons.notifications_rounded,
+                              icon: Icons.notifications_none_rounded,
                               badge: _unreadNotificationCount,
                               onTap: () async {
                                 await Navigator.push(
@@ -406,35 +392,45 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                                 await _loadUnreadNotificationCount();
                               },
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(14),
+                                color: isOnline 
+                                    ? Colors.white.withOpacity(0.2) 
+                                    : Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.25),
+                                  color: isOnline 
+                                      ? Colors.white.withOpacity(0.3) 
+                                      : Colors.white.withOpacity(0.1),
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.circle,
-                                    color: isOnline
-                                        ? AppColors.softGreen
-                                        : Colors.white70,
-                                    size: 8,
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isOnline ? AppColors.softGreen : Colors.white54,
+                                      boxShadow: isOnline ? [
+                                        BoxShadow(
+                                          color: AppColors.softGreen.withOpacity(0.5),
+                                          blurRadius: 4,
+                                          spreadRadius: 1,
+                                        )
+                                      ] : null,
+                                    ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    isOnline ? 'En ligne' : 'Hors ligne',
+                                    isOnline ? 'ACTIF' : 'INACTIF',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 10,
+                                      letterSpacing: 1,
                                     ),
                                   ),
                                 ],
@@ -616,7 +612,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
               child: _buildStatCard(
                 Icons.inventory_2_rounded,
                 '$total',
-                'Total',
+                'Total demandes',
                 AppColors.accentBlue,
               ),
             ),
@@ -629,29 +625,33 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                 AppColors.softOrange,
               ),
             ),
-            const SizedBox(width: 10),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
             Expanded(
               child: _buildStatCard(
                 Icons.check_circle_rounded,
                 '$accepted',
                 'Acceptées',
-                AppColors.stable,
+                AppColors.softGreen,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
+            const SizedBox(width: 10),
             Expanded(
               child: _buildStatCard(
                 Icons.cancel_rounded,
                 '$declined',
                 'Refusées',
-                AppColors.warmPeach,
+                const Color(0xFFFF6B6B),
               ),
             ),
-            const SizedBox(width: 10),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
             Expanded(
               child: GestureDetector(
                 onTap: () => Navigator.push(
@@ -661,19 +661,19 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                   ),
                 ),
                 child: _buildStatCard(
-                  Icons.track_changes_rounded,
+                  Icons.stars_rounded,
                   '$points',
-                  'Points',
-                  AppColors.primaryBlue,
+                  'Points cumulés',
+                  Colors.orange,
                 ),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _buildStatCard(
-                Icons.payments_rounded,
+                Icons.account_balance_wallet_rounded,
                 '${revenue.toStringAsFixed(0)}',
-                'TND',
+                'Revenus (TND)',
                 AppColors.lavender,
               ),
             ),
@@ -683,7 +683,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  // Carte de statistique (STYLE PATIENT - blanc avec ombre douce)
+  // Carte de statistique (STYLE PATIENT - moderne et propre)
   Widget _buildStatCard(
     IconData icon,
     String value,
@@ -691,11 +691,18 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     Color accentColor,
   ) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: accentColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accentColor.withOpacity(0.22)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -703,28 +710,29 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(10),
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 18, color: accentColor),
+            child: Icon(icon, size: 20, color: accentColor),
           ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              color: accentColor,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 13,
+            style: TextStyle(
+              fontSize: 11,
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
             ),
           ),
         ],
@@ -745,84 +753,115 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     final pendingPercent = total > 0 ? pending / total : 0.0;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppColors.cardRadius),
-        boxShadow: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.5)),
       ),
       child: Column(
         children: [
-          // Barres de progression
           Row(
             children: [
+              // Gauche: Jauge de score avec gradient
               Expanded(
+                flex: 2,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildProgressBar(
-                      'Acceptées',
-                      acceptedPercent,
-                      Colors.green,
-                      accepted,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildProgressBar(
-                      'Refusées',
-                      declinedPercent,
-                      Colors.red,
-                      declined,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildProgressBar(
-                      'En attente',
-                      pendingPercent,
-                      Colors.orange,
-                      pending,
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 110,
+                          height: 110,
+                          child: CircularProgressIndicator(
+                            value: 1.0,
+                            strokeWidth: 8,
+                            backgroundColor: Colors.grey.shade100,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade100),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 110,
+                          height: 110,
+                          child: CircularProgressIndicator(
+                            value: acceptanceRate / 100,
+                            strokeWidth: 10,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              acceptanceRate >= 80
+                                  ? AppColors.softGreen
+                                  : acceptanceRate >= 50
+                                      ? Colors.orangeAccent
+                                      : Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$acceptanceRate%',
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                                letterSpacing: -1,
+                              ),
+                            ),
+                            Text(
+                              'SCORE',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textSecondary.withOpacity(0.5),
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 20),
-              // Cercle de taux d'acceptation
-              Column(
-                children: [
-                  SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: Stack(
-                      children: [
-                        CircularProgressIndicator(
-                          value: acceptanceRate / 100,
-                          strokeWidth: 8,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            acceptanceRate >= 70
-                                ? AppColors.stable
-                                : acceptanceRate >= 50
-                                ? AppColors.attention
-                                : AppColors.warmPeach,
-                          ),
-                        ),
-                        Center(
-                          child: Text(
-                            '$acceptanceRate%',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+              const SizedBox(width: 24),
+              // Droite: Statistiques détaillées
+              Expanded(
+                flex: 3,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildProgressBar(
+                      'Acceptées',
+                      acceptedPercent,
+                      [AppColors.primaryGreen, AppColors.softGreen],
+                      accepted,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Taux\nd\'acceptation',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    _buildProgressBar(
+                      'Refusées',
+                      declinedPercent,
+                      [const Color(0xFFFF6B6B), const Color(0xFFFF8E8E)],
+                      declined,
+                    ),
+                    const SizedBox(height: 14),
+                    _buildProgressBar(
+                      'En attente',
+                      pendingPercent,
+                      [Colors.orangeAccent, Colors.orange.shade200],
+                      pending,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -834,7 +873,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   Widget _buildProgressBar(
     String label,
     double percent,
-    Color color,
+    List<Color> colors,
     int count,
   ) {
     return Column(
@@ -845,33 +884,58 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary.withOpacity(0.8),
+              ),
             ),
             Text(
               '$count',
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: color,
+                fontWeight: FontWeight.w800,
+                color: colors.first,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: percent,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 8,
-          ),
+        const SizedBox(height: 6),
+        Stack(
+          children: [
+            Container(
+              height: 8,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return Container(
+                  height: 8,
+                  width: constraints.maxWidth * percent,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: colors),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.first.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ],
     );
   }
 
-  // Section Badge
   Widget _buildBadgeSection(
     String badgeLevel,
     int points,
@@ -882,35 +946,37 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     final currentPoints = badgeProgression?.currentPoints ?? points;
     final totalForNext = currentPoints + nextLevelPoints;
     final progress = totalForNext > 0 ? currentPoints / totalForNext : 0.0;
+    final Color badgeColor = badgeInfo['color'] as Color;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            badgeInfo['color'] as Color,
-            (badgeInfo['color'] as Color).withOpacity(0.7),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppColors.cardRadius),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: (badgeInfo['color'] as Color).withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: badgeColor.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
+        border: Border.all(color: badgeColor.withOpacity(0.1), width: 1),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(
-                badgeInfo['icon'] as IconData,
-                size: 50,
-                color: Colors.white,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: badgeColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  badgeInfo['icon'] as IconData,
+                  size: 32,
+                  color: badgeColor,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -918,84 +984,97 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      badgeInfo['name'] as String,
+                      'Rang ${badgeInfo['name']}',
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.5,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      '$currentPoints points accumulés',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                      '$currentPoints points cumulés',
+                      style: TextStyle(
+                        color: AppColors.textSecondary.withOpacity(0.7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Niv. ${badgeInfo['level']}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              if (nextLevelPoints > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Text(
+                    '+$nextLevelPoints pts',
+                    style: TextStyle(
+                      color: badgeColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Progression vers le niveau suivant',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                '${(progress * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: badgeColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Barre de progression
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 10),
+          Stack(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Prochain niveau',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    '$currentPoints / $totalForNext pts',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  minHeight: 8,
+              Container(
+                height: 10,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundPrimary,
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Plus que $nextLevelPoints points avant le prochain niveau.',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 11,
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Container(
+                    height: 10,
+                    width: constraints.maxWidth * progress,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [badgeColor, badgeColor.withOpacity(0.7)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: badgeColor.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -1057,76 +1136,83 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
       });
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppColors.cardRadius),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Column(
-        children: activities.asMap().entries.map((entry) {
-          final index = entry.key;
-          final activity = entry.value;
-          final isLast = index == activities.length - 1;
-
-          return Column(
+    return Column(
+      children: activities.map((activity) {
+        final Color color = activity['color'] as Color;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: color.withOpacity(0.1), width: 1),
+          ),
+          child: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  activity['icon'] as IconData,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: (activity['color'] as Color).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        activity['icon'] as IconData,
-                        size: 20,
-                        color: activity['color'] as Color,
+                    Text(
+                      activity['title'] as String,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            activity['title'] as String,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: activity['color'] as Color,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            activity['message'] as String,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            activity['detail'] as String,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 2),
+                    Text(
+                      activity['message'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary.withOpacity(0.8),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (!isLast) Divider(height: 1, color: Colors.grey.shade200),
+              if (activity['detail'] != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    activity['detail'] as String,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                ),
             ],
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1285,13 +1371,6 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             'Excellent! Votre taux d\'acceptation de $acceptanceRate% est remarquable!',
       });
     }
-
-    tips.add({
-      'icon': Icons.flash_on_rounded,
-      'color': AppColors.lavender,
-      'tip':
-          'Activez un boost pour apparaître en priorité dans les recherches!',
-    });
 
     return Container(
       padding: const EdgeInsets.all(16),

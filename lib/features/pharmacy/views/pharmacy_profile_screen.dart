@@ -13,6 +13,10 @@ import 'package:diab_care/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:diab_care/features/notifications/views/notifications_inbox_screen.dart';
 import 'package:diab_care/features/pharmacy/views/pharmacy_location_picker_screen.dart';
 import 'package:diab_care/features/pharmacy/viewmodels/pharmacy_viewmodel.dart';
+import 'package:diab_care/data/models/pharmacy_models.dart';
+import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
+import 'package:diab_care/features/pharmacy/views/pharmacy_requests_screen.dart';
+import 'package:diab_care/features/notifications/views/notifications_inbox_screen.dart';
 
 class PharmacyProfileScreen extends StatefulWidget {
   const PharmacyProfileScreen({super.key});
@@ -290,530 +294,593 @@ class _PharmacyProfileScreenState extends State<PharmacyProfileScreen> {
       builder: (context, viewModel, child) {
         final pharmacy = viewModel.pharmacyProfile;
         final stats = viewModel.pharmacyStats;
+        final points = pharmacy?.points ?? 0;
+        final badgeLevel = pharmacy?.badgeLevel ?? 'bronze';
+        
         final profileImage = ProfileImageUtils.imageProvider(
           pharmacy?.displayProfileImage,
         );
 
         return Scaffold(
           backgroundColor: AppColors.backgroundPrimary,
-          body: CustomScrollView(
-            slivers: [
-              // ── Gradient Header with decorative circles ──
-              SliverToBoxAdapter(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: AppColors.mainGradient,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(32),
-                          bottomRight: Radius.circular(32),
-                        ),
-                      ),
-                      child: SafeArea(
-                        bottom: false,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                          child: Column(
-                            children: [
-                              const Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Mon Profil',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              // Avatar
-                              Stack(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.4),
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          blurRadius: 20,
-                                        ),
-                                      ],
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 44,
-                                      backgroundColor: Colors.white,
-                                      backgroundImage: profileImage,
-                                      child: profileImage == null
-                                          ? const Icon(
-                                              Icons.local_pharmacy_rounded,
-                                              size: 44,
-                                              color: AppColors.primaryGreen,
-                                            )
-                                          : null,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 0,
-                                    bottom: 0,
-                                    child: InkWell(
-                                      onTap: _isUploadingPhoto
-                                          ? null
-                                          : _pickAndUploadPhoto,
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: _isUploadingPhoto
-                                            ? const SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color:
-                                                          AppColors.softGreen,
-                                                    ),
-                                              )
-                                            : const Icon(
-                                                Icons.camera_alt_rounded,
-                                                size: 16,
-                                                color: AppColors.softGreen,
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                pharmacy?.nomPharmacie ?? 'Pharmacie',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                pharmacy?.email ?? '',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Decorative circles
-                    Positioned(
-                      top: 20,
-                      right: -20,
-                      child: _DecorativeCircle(size: 80, opacity: 0.06),
-                    ),
-                    Positioned(
-                      top: 60,
-                      right: 30,
-                      child: _DecorativeCircle(size: 30, opacity: 0.04),
-                    ),
-                    Positioned(
-                      top: 30,
-                      left: -15,
-                      child: _DecorativeCircle(size: 50, opacity: 0.05),
-                    ),
-                  ],
-                ),
+          body: RefreshIndicator(
+            onRefresh: () => viewModel.loadDashboard(),
+            color: AppColors.primaryGreen,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-                  child: Column(
-                    children: [
-                      // ── Quick Stats ──
-                      if (stats != null) ...[
-                        FadeInSlide(
-                          index: 0,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _GlowStatCard(
-                                  label: 'Demandes',
-                                  value: '${stats.totalRequests}',
-                                  icon: Icons.inbox_rounded,
-                                  color: AppColors.softGreen,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _GlowStatCard(
-                                  label: 'Acceptées',
-                                  value: '${stats.acceptedRequests}',
-                                  icon: Icons.check_circle_rounded,
-                                  color: AppColors.lightBlue,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _GlowStatCard(
-                                  label: 'Clients',
-                                  value: '${stats.newClients}',
-                                  icon: Icons.people_rounded,
-                                  color: AppColors.lavender,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // ── Informations ──
-                      if (pharmacy != null) ...[
-                        FadeInSlide(
-                          index: 1,
-                          child: _buildInfoCard(
-                            icon: Icons.info_rounded,
-                            title: 'Informations',
-                            color: AppColors.softGreen,
-                            children: [
-                              _buildInfoRow(
-                                Icons.person_rounded,
-                                'Nom',
-                                '${pharmacy.nom} ${pharmacy.prenom}',
-                                AppColors.softGreen,
-                              ),
-                              const Divider(height: 24, indent: 46),
-                              _buildInfoRow(
-                                Icons.email_rounded,
-                                'Email',
-                                pharmacy.email,
-                                AppColors.lightBlue,
-                              ),
-                              const Divider(height: 24, indent: 46),
-                              _buildInfoRow(
-                                Icons.phone_rounded,
-                                'Téléphone',
-                                pharmacy.displayTelephone,
-                                const Color(0xFFFFB347),
-                              ),
-                              const Divider(height: 24, indent: 46),
-                              _buildInfoRow(
-                                Icons.location_on_rounded,
-                                'Adresse',
-                                pharmacy.adressePharmacie,
-                                const Color(0xFFFF6B6B),
-                              ),
-                              const Divider(height: 24, indent: 46),
-                              _buildInfoRow(
-                                Icons.badge_rounded,
-                                'N° d\'ordre',
-                                pharmacy.numeroOrdre,
-                                AppColors.lavender,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ] else
-                        FadeInSlide(
-                          index: 1,
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Aucune information disponible',
-                                style: TextStyle(color: AppColors.textMuted),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // ── Activity Mode & Settings ──
-                      FadeInSlide(
-                        index: 2,
-                        child: _buildActivityCard(context, viewModel),
-                      ),
-                      const SizedBox(height: 24),
-
-                      FadeInSlide(
-                        index: 2,
-                        child: _buildLocationCard(context, viewModel),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ── Settings list ──
-                      FadeInSlide(
-                        index: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF6B7280,
-                                    ).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.settings_rounded,
-                                    color: Color(0xFF6B7280),
-                                    size: 18,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                const Text(
-                                  'Paramètres',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  _settingsTile(
-                                    Icons.notifications_rounded,
-                                    'Notifications',
-                                    AppColors.softGreen,
-                                    () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const NotificationsInboxScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const Divider(
-                                    height: 1,
-                                    indent: 60,
-                                    endIndent: 16,
-                                  ),
-                                  _settingsTile(
-                                    Icons.tune_rounded,
-                                    'Paramètres',
-                                    AppColors.lightBlue,
-                                    () {},
-                                  ),
-                                  const Divider(
-                                    height: 1,
-                                    indent: 60,
-                                    endIndent: 16,
-                                  ),
-                                  _settingsTile(
-                                    Icons.help_outline_rounded,
-                                    'Aide',
-                                    const Color(0xFF48BB78),
-                                    () {},
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ── Logout ──
-                      FadeInSlide(
-                        index: 4,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFFFF6B6B).withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () async {
-                                final navigator = Navigator.of(context);
-                                final authVm = Provider.of<AuthViewModel>(
-                                  context,
-                                  listen: false,
-                                );
-                                final pharmacyVm =
-                                    Provider.of<PharmacyViewModel>(
-                                      context,
-                                      listen: false,
-                                    );
-                                await pharmacyVm.logout(clearAuthData: false);
-                                await authVm.logout();
-                                if (!mounted) return;
-                                navigator.pushNamedAndRemoveUntil(
-                                  '/',
-                                  (route) => false,
-                                );
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.logout_rounded,
-                                      color: Color(0xFFFF6B6B),
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Déconnexion',
-                                      style: TextStyle(
-                                        color: Color(0xFFFF6B6B),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 120),
-                    ],
+              slivers: [
+                // ── Header Premium ──
+                SliverToBoxAdapter(
+                  child: _buildPremiumHeader(
+                    context, 
+                    pharmacy, 
+                    profileImage, 
+                    badgeLevel, 
+                    points
                   ),
                 ),
-              ),
-            ],
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Statut d'Activité (Switch) ──
+                        FadeInSlide(
+                          index: 0,
+                          child: _buildActivityCard(context, viewModel),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // ── Performance Grid ──
+                        _buildSectionTitle(Icons.analytics_rounded, 'Performance Réelle'),
+                        const SizedBox(height: 12),
+                        FadeInSlide(
+                          index: 1,
+                          child: _buildPerformanceGrid(stats, points),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // ── Informations de la Pharmacie ──
+                        _buildSectionTitle(Icons.business_rounded, 'Détails de l\'établissement'),
+                        const SizedBox(height: 12),
+                        FadeInSlide(
+                          index: 2,
+                          child: _buildPharmacyDetailsCard(pharmacy),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // ── Localisation ──
+                        _buildSectionTitle(Icons.map_rounded, 'Localisation'),
+                        const SizedBox(height: 12),
+                        FadeInSlide(
+                          index: 3,
+                          child: _buildLocationCard(context, viewModel),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // ── Paramètres & Compte ──
+                        _buildSectionTitle(Icons.settings_rounded, 'Paramètres & Compte'),
+                        const SizedBox(height: 12),
+                        FadeInSlide(
+                          index: 4,
+                          child: _buildSettingsSection(context, viewModel),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // ── Déconnexion ──
+                        _buildLogoutButton(context),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildLocationCard(BuildContext context, PharmacyViewModel viewModel) {
-    final profile = viewModel.pharmacyProfile;
-    final location = profile?.location;
-    final hasLocation = location?.latitude != null && location?.longitude != null;
-    final lat = location?.latitude;
-    final lng = location?.longitude;
-
-    return _buildInfoCard(
-      icon: Icons.location_searching_rounded,
-      title: 'Localisation de la pharmacie',
-      color: AppColors.lightBlue,
+  // Header avec bannière et avatar Squircle
+  Widget _buildPremiumHeader(
+    BuildContext context, 
+    PharmacyProfile? pharmacy, 
+    ImageProvider? profileImage,
+    String badgeLevel,
+    int points,
+  ) {
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Cette position est utilisee pour recevoir les demandes des patients a proximite.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+        // Background Gradient with curved bottom
+        Container(
+          height: 240,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primaryGreen, AppColors.accentBlue],
             ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: hasLocation
-                    ? AppColors.softGreen.withOpacity(0.14)
-                    : Colors.orange.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                hasLocation ? 'Configuree' : 'Non configuree',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: hasLocation ? AppColors.softGreen : Colors.orange,
-                ),
-              ),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(40),
+              bottomRight: Radius.circular(40),
             ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          hasLocation
-              ? 'Lat: ${lat!.toStringAsFixed(6)} • Lng: ${lng!.toStringAsFixed(6)}'
-              : 'Aucune coordonnee GPS enregistree.',
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _isSavingLocation
-                ? null
-                : () => _openLocationOptions(viewModel),
-            icon: _isSavingLocation
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
+        // Abstract decorations
+        Positioned(
+          top: -30,
+          right: -30,
+          child: Container(
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.1),
+            ),
+          ),
+        ),
+
+        Column(
+          children: [
+            const SizedBox(height: 70),
+            // Avatar with glass effect border
+            Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                  ),
+                  child: Container(
+                    decoration: const BoxDecoration(
                       color: Colors.white,
+                      shape: BoxShape.circle,
                     ),
-                  )
-                : const Icon(Icons.edit_location_alt_rounded),
-            label: Text(
-              _isSavingLocation
-                  ? 'Mise a jour...'
-                  : 'Configurer ma localisation',
+                    padding: const EdgeInsets.all(2),
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.grey.shade100,
+                      backgroundImage: profileImage,
+                      child: profileImage == null
+                          ? const Icon(Icons.local_pharmacy_rounded, size: 40, color: AppColors.primaryGreen)
+                          : null,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 4,
+                  bottom: 4,
+                  child: GestureDetector(
+                    onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: _isUploadingPhoto
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.lightBlue,
-              foregroundColor: Colors.white,
+            const SizedBox(height: 16),
+            Text(
+              pharmacy?.nomPharmacie ?? 'Ma Pharmacie',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
+              ),
             ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Niveau ${badgeLevel.toUpperCase()}',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(IconData icon, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.textPrimary),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerformanceGrid(PharmacyStats? stats, int points) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.6,
+      children: [
+        _buildMiniStatCard('Demandes', '${stats?.totalRequests ?? 0}', Icons.inbox_rounded, AppColors.softGreen),
+        _buildMiniStatCard('Acceptées', '${stats?.acceptedRequests ?? 0}', Icons.check_circle_rounded, AppColors.primaryBlue),
+        _buildMiniStatCard('Points', '$points', Icons.stars_rounded, Colors.orange),
+        _buildMiniStatCard('Revenus', '${stats?.estimatedRevenue.toStringAsFixed(0) ?? 0} TND', Icons.payments_rounded, AppColors.lavender),
+      ],
+    );
+  }
+
+  Widget _buildMiniStatCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: color.withOpacity(0.05), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 14, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label, 
+                  style: TextStyle(
+                    fontSize: 10, 
+                    color: AppColors.textSecondary.withOpacity(0.8), 
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20, 
+              fontWeight: FontWeight.w900, 
+              color: AppColors.textPrimary,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPharmacyDetailsCard(PharmacyProfile? pharmacy) {
+    if (pharmacy == null) return const SizedBox();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        children: [
+          _buildDetailRow(Icons.person_rounded, 'Pharmacien', '${pharmacy.nom} ${pharmacy.prenom}'),
+          const Divider(height: 24),
+          _buildDetailRow(Icons.email_rounded, 'Email', pharmacy.email),
+          const Divider(height: 24),
+          _buildDetailRow(Icons.phone_rounded, 'Téléphone', pharmacy.displayTelephone),
+          const Divider(height: 24),
+          _buildDetailRow(Icons.badge_rounded, 'Numéro d\'ordre', pharmacy.numeroOrdre),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: AppColors.backgroundPrimary, borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, size: 18, color: AppColors.primaryGreen),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSettingsSection(BuildContext context, PharmacyViewModel viewModel) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _settingsTile(
+            Icons.notifications_active_rounded, 
+            'Notifications', 
+            AppColors.primaryBlue, 
+            () => Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (_) => const NotificationsInboxScreen())
+            )
+          ),
+          _settingsTile(
+            Icons.history_rounded, 
+            'Historique des demandes', 
+            AppColors.softGreen, 
+            () => Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (_) => const PharmacyRequestsScreen())
+            )
+          ),
+          _settingsTile(
+            Icons.manage_accounts_rounded, 
+            'Paramètres du compte', 
+            Colors.orange, 
+            () {
+              // Navigation vers paramètres avancés
+            }
+          ),
+          _settingsTile(
+            Icons.security_rounded, 
+            'Sécurité & Confidentialité', 
+            AppColors.lavender, 
+            () {}
+          ),
+          _settingsTile(
+            Icons.help_center_rounded, 
+            'Centre d\'aide', 
+            Colors.blueGrey, 
+            () {}
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _settingsTile(IconData icon, String title, Color iconColor, VoidCallback onTap) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.red.withOpacity(0.3), width: 1.5),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () async {
+          final authVm = Provider.of<AuthViewModel>(context, listen: false);
+          final pharmacyVm = Provider.of<PharmacyViewModel>(context, listen: false);
+          await pharmacyVm.logout(clearAuthData: false);
+          await authVm.logout();
+          if (!mounted) return;
+          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        },
+        child: const Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded, color: Colors.red, size: 20),
+              SizedBox(width: 8),
+              Text('Déconnexion', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildLocationCard(BuildContext context, PharmacyViewModel viewModel) {
+    final profile = viewModel.pharmacyProfile;
+    final lat = profile?.location?.latitude;
+    final lng = profile?.location?.longitude;
+    final hasLocation = lat != null && lng != null;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppColors.cardShadow,
+        border: Border.all(color: Colors.white.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.location_on_rounded, color: AppColors.primaryGreen, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Localisation de la pharmacie',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasLocation ? 'Coordonnées configurées' : 'Non configuré',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: hasLocation ? AppColors.softGreen : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (hasLocation) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundPrimary,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.gps_fixed_rounded, size: 14, color: AppColors.textSecondary),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Lat: ${lat.toStringAsFixed(6)} • Lng: ${lng.toStringAsFixed(6)}',
+                    style: const TextStyle(
+                      fontFamily: 'Courier',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+          Container(
+            width: double.infinity,
+            height: 52,
+            decoration: BoxDecoration(
+              gradient: AppColors.mainGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: _isSavingLocation ? null : () => _openLocationOptions(viewModel),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: _isSavingLocation
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_location_alt_rounded, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Configurer ma localisation',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -852,7 +919,7 @@ class _PharmacyProfileScreenState extends State<PharmacyProfileScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppColors.cardRadius),
             border: Border.all(color: color.withOpacity(0.08)),
             boxShadow: [
               BoxShadow(
@@ -926,7 +993,7 @@ class _PharmacyProfileScreenState extends State<PharmacyProfileScreen> {
               ? [const Color(0xFF7DDAB9), const Color(0xFF5BC4A8)]
               : [Colors.grey.shade400, Colors.grey.shade500],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppColors.cardRadius),
         boxShadow: [
           BoxShadow(
             color: (isOnline ? AppColors.softGreen : Colors.grey).withOpacity(
@@ -986,7 +1053,7 @@ class _PharmacyProfileScreenState extends State<PharmacyProfileScreen> {
                 context: context,
                 builder: (context) => AlertDialog(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(AppColors.cardRadius),
                   ),
                   title: Row(
                     children: [
@@ -1069,29 +1136,8 @@ class _PharmacyProfileScreenState extends State<PharmacyProfileScreen> {
     );
   }
 
-  Widget _settingsTile(
-    IconData icon,
-    String title,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 18),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-      ),
-      trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
-      onTap: onTap,
-    );
-  }
+
+
 }
 
 class _GlowStatCard extends StatelessWidget {
@@ -1109,45 +1155,41 @@ class _GlowStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppColors.cardRadius),
+        boxShadow: AppColors.cardShadow,
+        border: Border.all(color: Colors.white.withOpacity(0.5)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 11,
-              color: AppColors.textMuted,
-              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

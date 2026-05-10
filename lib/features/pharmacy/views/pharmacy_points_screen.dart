@@ -72,9 +72,9 @@ class _PharmacyPointsScreenState extends State<PharmacyPointsScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [AppColors.softGreen, Color(0xFF1B8A6B)]),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: AppColors.softGreen.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+                      gradient: AppColors.mainGradient,
+                      borderRadius: BorderRadius.circular(AppColors.cardRadius),
+                      boxShadow: AppColors.cardShadow,
                     ),
                     child: Column(children: [
                       Icon(_badgeIcon(_badge), size: 48, color: Colors.white.withValues(alpha: 0.9)),
@@ -113,9 +113,9 @@ class _PharmacyPointsScreenState extends State<PharmacyPointsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isCurrent ? AppColors.softGreen.withValues(alpha: 0.1) : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppColors.cardRadius),
                         border: isCurrent ? Border.all(color: AppColors.softGreen, width: 2) : null,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)],
+                        boxShadow: AppColors.cardShadow,
                       ),
                       child: Row(children: [
                         Icon(_badgeIcon(b), size: 28, color: isUnlocked ? _badgeColor(b) : Colors.grey.shade300),
@@ -155,7 +155,11 @@ class _PharmacyPointsScreenState extends State<PharmacyPointsScreen> {
   Widget _statCard(String label, String value, IconData icon) {
     return Expanded(child: Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppColors.cardRadius),
+        boxShadow: AppColors.cardShadow,
+      ),
       child: Column(children: [
         Icon(icon, color: AppColors.softGreen, size: 22),
         const SizedBox(height: 6),
@@ -169,7 +173,7 @@ class _PharmacyPointsScreenState extends State<PharmacyPointsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: AppColors.cardShadow),
       child: Row(children: [
         Icon(icon, color: AppColors.softGreen, size: 20),
         const SizedBox(width: 10),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
 import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/subscription_service.dart';
 
 /// Model for a glucose prediction result
 class AiPrediction {
@@ -125,6 +126,7 @@ class AiPrediction {
 ///   GET  /api/ai-prediction/:id        — Detail
 class AiPredictionService {
   final TokenService _tokenService = TokenService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
   final Duration _timeout = const Duration(seconds: 120);
 
   String get _baseUrl => ApiConstants.baseUrl;
@@ -139,7 +141,7 @@ class AiPredictionService {
   }
 
   /// Request a manual glucose prediction
-  Future<AiPrediction> predict() async {
+  Future<AiPrediction> predict({bool isRetry = false}) async {
     try {
       final headers = await _getHeaders();
       final response = await http.post(
@@ -153,6 +155,10 @@ class AiPredictionService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return AiPrediction.fromJson(data);
+      } else if ((response.statusCode == 403 || response.statusCode == 402) && !isRetry) {
+         debugPrint('🔄 [AiPredictionService] 403 received, attempting to sync subscription and retry...');
+         await _subscriptionService.syncWithBackend();
+         return predict(isRetry: true);
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['message'] ?? 'Erreur de prédiction');
@@ -164,7 +170,7 @@ class AiPredictionService {
   }
 
   /// Request a post-meal prediction
-  Future<AiPrediction> predictPostMeal(String mealId) async {
+  Future<AiPrediction> predictPostMeal(String mealId, {bool isRetry = false}) async {
     try {
       final headers = await _getHeaders();
       final response = await http.post(
@@ -178,6 +184,10 @@ class AiPredictionService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return AiPrediction.fromJson(data);
+      } else if ((response.statusCode == 403 || response.statusCode == 402) && !isRetry) {
+         debugPrint('🔄 [AiPredictionService] 403 received, attempting to sync subscription and retry...');
+         await _subscriptionService.syncWithBackend();
+         return predictPostMeal(mealId, isRetry: true);
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['message'] ?? 'Erreur de prédiction post-repas');
@@ -189,7 +199,7 @@ class AiPredictionService {
   }
 
   /// Get prediction history
-  Future<List<AiPrediction>> getHistory({int page = 1, int limit = 20}) async {
+  Future<List<AiPrediction>> getHistory({int page = 1, int limit = 20, bool isRetry = false}) async {
     try {
       final headers = await _getHeaders();
       final response = await http.get(
@@ -203,6 +213,10 @@ class AiPredictionService {
         final data = jsonDecode(response.body);
         final List items = data is List ? data : (data['data'] ?? data['predictions'] ?? []);
         return items.map((json) => AiPrediction.fromJson(json)).toList();
+      } else if ((response.statusCode == 403 || response.statusCode == 402) && !isRetry) {
+         debugPrint('🔄 [AiPredictionService] 403 received, attempting to sync subscription and retry...');
+         await _subscriptionService.syncWithBackend();
+         return getHistory(page: page, limit: limit, isRetry: true);
       } else {
         throw Exception('Erreur chargement historique prédictions');
       }
@@ -213,7 +227,7 @@ class AiPredictionService {
   }
 
   /// Get a single prediction by ID
-  Future<AiPrediction> getDetail(String id) async {
+  Future<AiPrediction> getDetail(String id, {bool isRetry = false}) async {
     try {
       final headers = await _getHeaders();
       final response = await http.get(
@@ -224,6 +238,10 @@ class AiPredictionService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return AiPrediction.fromJson(data);
+      } else if ((response.statusCode == 403 || response.statusCode == 402) && !isRetry) {
+         debugPrint('🔄 [AiPredictionService] 403 received, attempting to sync subscription and retry...');
+         await _subscriptionService.syncWithBackend();
+         return getDetail(id, isRetry: true);
       } else {
         throw Exception('Erreur chargement prédiction');
       }

@@ -112,6 +112,40 @@ class PharmacyProfile {
     if (telephone.trim().isNotEmpty) return telephone;
     return telephonePharmacie;
   }
+
+  PharmacyProfile copyWith({bool? isOnDuty}) {
+    return PharmacyProfile(
+      id: id,
+      nom: nom,
+      prenom: prenom,
+      email: email,
+      telephone: telephone,
+      role: role,
+      nomPharmacie: nomPharmacie,
+      numeroOrdre: numeroOrdre,
+      telephonePharmacie: telephonePharmacie,
+      adressePharmacie: adressePharmacie,
+      photoProfil: photoProfil,
+      profileImage: profileImage,
+      location: location,
+      points: points,
+      badgeLevel: badgeLevel,
+      totalRequestsReceived: totalRequestsReceived,
+      totalRequestsAccepted: totalRequestsAccepted,
+      totalRequestsDeclined: totalRequestsDeclined,
+      totalClients: totalClients,
+      totalRevenue: totalRevenue,
+      averageResponseTime: averageResponseTime,
+      averageRating: averageRating,
+      totalReviews: totalReviews,
+      isOnDuty: isOnDuty ?? this.isOnDuty,
+      notificationsPush: notificationsPush,
+      notificationsEmail: notificationsEmail,
+      notificationsSMS: notificationsSMS,
+      visibilityRadius: visibilityRadius,
+      statutCompte: statutCompte,
+    );
+  }
 }
 
 class PharmacyLocation {

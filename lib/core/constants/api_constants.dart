@@ -52,13 +52,14 @@ class ApiConstants {
   static const String complaints = '/complaints';
   static const String myComplaints = '/complaints/my';
 
-  // Pharmacy Dashboard Endpoints
   static String pharmacyDashboard(String pharmacyId) =>
       '/pharmaciens/$pharmacyId/dashboard';
   static String pharmacyStats(String pharmacyId) =>
       '/pharmaciens/$pharmacyId/stats';
   static String monthlyStats(String pharmacyId) =>
       '/pharmaciens/$pharmacyId/stats/monthly';
+  static String updatePharmacien(String pharmacyId) =>
+      '/pharmaciens/$pharmacyId';
 
   // Activity Feed
   static String activityFeed(String pharmacyId) =>
@@ -118,6 +119,10 @@ class ApiConstants {
   static const String aiPatternLatest = '/ai-pattern/latest';
   static const String aiPatternHistory = '/ai-pattern/history';
   static String aiPatternDetail(String id) => '/ai-pattern/$id';
+
+  // ─── Patient Subscription Endpoints ───
+  static const String subscriptionSync = '/subscriptions/sync';
+  static const String subscriptionMe = '/subscriptions/me';
 
   // Default Headers
   static Map<String, String> get defaultHeaders => {

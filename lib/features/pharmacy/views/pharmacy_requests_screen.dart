@@ -315,7 +315,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(100),
                           ),
                         ),
                         child: const Text('Annuler'),
@@ -340,7 +340,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(100),
                           ),
                         ),
                       ),
@@ -430,7 +430,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppColors.cardRadius)),
         title: Row(
           children: [
             Container(
@@ -501,7 +501,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
             ),
             child: const Text('Confirmer'),
           ),
@@ -561,7 +561,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppColors.cardRadius)),
         title: Row(
           children: [
             Container(
@@ -631,7 +631,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> with Si
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
             ),
             child: const Text('Refuser'),
           ),

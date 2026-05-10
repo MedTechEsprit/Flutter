@@ -24,22 +24,39 @@ class _AiHubScreenState extends State<AiHubScreen> {
 
     setState(() => _checkingSubscription = true);
     try {
-      final status = await _subscriptionService.getMySubscription();
+      // Vérifier le statut local via RevenueCat
+      var status = await _subscriptionService.getMySubscription();
       if (!mounted) return;
 
+      // Si actif localement, on tente aussi une synchro backend préventive (non-bloquante)
       if (status.isActive) {
+        // Lancer la synchro en background sans bloquer la navigation
+        _subscriptionService.syncWithBackend();
         await Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => screen));
       } else {
-        final unlocked = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(builder: (_) => const PremiumSubscriptionScreen()),
-        );
+        // Pas actif localement: peut-être que le cache RevenueCat est périmé.
+        // On force une synchro backend puis on re-vérifie.
+        await _subscriptionService.syncWithBackend();
+        status = await _subscriptionService.getMySubscription();
+        if (!mounted) return;
 
-        if (unlocked == true && mounted) {
+        if (status.isActive) {
           await Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => screen));
+        } else {
+          // Toujours inactif: on redirige vers l'écran d'abonnement
+          final unlocked = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const PremiumSubscriptionScreen()),
+          );
+
+          if (unlocked == true && mounted) {
+            await Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => screen));
+          }
         }
       }
     } catch (e) {

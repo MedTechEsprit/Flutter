@@ -66,7 +66,8 @@ class AppColors {
   static const LinearGradient mainGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF74EBD5), Color(0xFFACB6E5)], // #74ebd5 to #ACB6E5
+    colors: [primaryGreen, accentBlue],
+
   );
 
   static const LinearGradient doctorGradient = LinearGradient(
@@ -107,7 +108,7 @@ class AppColors {
   static const Color border = Color(0xFFE8ECF0);
 
   // ─── Unified Design Constants ───
-  static const double cardRadius = 16.0;
+  static const double cardRadius = 24.0;
   static const double headerRadius = 28.0;
   static const double inputRadius = 16.0;
   static const double navBarRadius = 24.0;
@@ -115,8 +116,8 @@ class AppColors {
   /// Standard card shadow used across all screens
   static List<BoxShadow> get cardShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.04),
-      blurRadius: 12,
+      color: Colors.black.withOpacity(0.03),
+      blurRadius: 10,
       offset: const Offset(0, 4),
     ),
   ];

@@ -50,11 +50,32 @@ class _PremiumSubscriptionScreenState extends State<PremiumSubscriptionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Abonnement Premium activé ✅')),
         );
+        // Naviguer automatiquement vers l'outil IA demandé
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) Navigator.pop(context, true);
+        return;
+      }
+
+      // L'achat a réussi côté RevenueCat mais le backend n'a pas encore synchronisé.
+      // On retente la synchro une fois de plus.
+      debugPrint('⚠️ Achat OK localement mais isActive=false. Retry sync...');
+      await _subscriptionService.syncWithBackend();
+      final retryStatus = await _subscriptionService.getMySubscription();
+      if (!mounted) return;
+
+      setState(() => _status = retryStatus);
+
+      if (retryStatus.isActive) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Abonnement Premium activé ✅')),
+        );
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Achat terminé, mais abonnement non actif pour le moment.',
+              'Achat terminé. Si l\'accès n\'est pas immédiat, utilisez "Restaurer mes achats".',
             ),
           ),
         );

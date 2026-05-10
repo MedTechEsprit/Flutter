@@ -109,8 +109,8 @@ class _OrderList extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+              color: Colors.white, borderRadius: BorderRadius.circular(AppColors.cardRadius),
+              boxShadow: AppColors.cardShadow,
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
@@ -144,13 +144,13 @@ class _OrderList extends StatelessWidget {
                   if (onCancel != null)
                     Expanded(child: OutlinedButton(
                       onPressed: () => onCancel!(id),
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100))),
                       child: const Text('Annuler'),
                     )),
                   if (onCancel != null) const SizedBox(width: 8),
                   Expanded(child: ElevatedButton(
                     onPressed: () => onAction!(id),
-                    style: ElevatedButton.styleFrom(backgroundColor: actionColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    style: ElevatedButton.styleFrom(backgroundColor: actionColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100))),
                     child: Text(actionLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   )),
                 ]),

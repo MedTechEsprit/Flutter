@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:diab_care/core/constants/api_constants.dart';
 import 'package:diab_care/core/services/token_service.dart';
+import 'package:diab_care/data/services/subscription_service.dart';
 
 /// Model for detailed AI advice from food analysis
 /// Maps to backend DetailedAdvice fields
@@ -180,6 +181,7 @@ class AiFoodAnalysisDetail {
 /// Endpoint: POST /api/ai-food-analyzer
 class AiFoodAnalyzerService {
   final TokenService _tokenService = TokenService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
   final Duration _timeout = const Duration(seconds: 180);
 
   String get _baseUrl => ApiConstants.baseUrl;
@@ -197,6 +199,7 @@ class AiFoodAnalyzerService {
   /// [imageUrl] - URL of the food image to analyze
   Future<AiFoodAnalysisResponse> analyzeFood({
     required String imageUrl,
+    bool isRetry = false,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -213,6 +216,10 @@ class AiFoodAnalyzerService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return AiFoodAnalysisResponse.fromJson(data);
+      } else if ((response.statusCode == 403 || response.statusCode == 402) && !isRetry) {
+         debugPrint('🔄 [AiFoodAnalyzerService] 403 received, attempting to sync subscription and retry...');
+         await _subscriptionService.syncWithBackend();
+         return analyzeFood(imageUrl: imageUrl, isRetry: true);
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['message'] ?? 'Erreur analyse alimentaire');

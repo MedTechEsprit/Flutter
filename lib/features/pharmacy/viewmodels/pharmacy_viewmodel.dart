@@ -8,7 +8,6 @@ import 'package:diab_care/core/services/gamification_service.dart';
 import 'package:diab_care/features/pharmacy/models/pharmacy_api_models.dart';
 import 'package:diab_care/features/pharmacy/services/pharmacy_dashboard_service.dart';
 import 'package:diab_care/features/pharmacy/services/medication_request_service.dart';
-import 'package:diab_care/features/pharmacy/services/boost_service.dart';
 import 'package:diab_care/features/pharmacy/services/activity_service.dart';
 import 'package:diab_care/data/models/pharmacy_models.dart';
 import 'package:diab_care/data/models/gamification_models.dart';
@@ -22,7 +21,6 @@ class PharmacyViewModel extends ChangeNotifier {
   final TokenService _tokenService = TokenService();
   final PharmacyDashboardService _dashboardService = PharmacyDashboardService();
   final MedicationRequestService _requestService = MedicationRequestService();
-  final BoostService _boostService = BoostService();
   final ActivityService _activityService = ActivityService();
   final GamificationService _gamificationService = GamificationService();
 
@@ -52,11 +50,6 @@ class PharmacyViewModel extends ChangeNotifier {
   List<MedicationRequestModel> _expiredRequests = [];
   String? _requestsError;
 
-  // État des boosts
-  LoadingState _boostState = LoadingState.initial;
-  List<BoostModel> _activeBoosts = [];
-  String? _boostError;
-
   // État de l'activité
   List<ActivityModel> _activityFeed = [];
 
@@ -75,10 +68,6 @@ class PharmacyViewModel extends ChangeNotifier {
   List<MedicationRequestModel> get declinedRequests => _declinedRequests;
   List<MedicationRequestModel> get expiredRequests => _expiredRequests;
   String? get requestsError => _requestsError;
-
-  LoadingState get boostState => _boostState;
-  List<BoostModel> get activeBoosts => _activeBoosts;
-  String? get boostError => _boostError;
 
   List<ActivityModel> get activityFeed => _activityFeed;
 
@@ -675,54 +664,7 @@ class PharmacyViewModel extends ChangeNotifier {
     return result;
   }
 
-  // ─── Méthodes des Boosts ───────────────────────────
 
-  /// Charge les boosts actifs
-  Future<void> loadActiveBoosts() async {
-    debugPrint('⚡ loadActiveBoosts() appelé');
-    _boostState = LoadingState.loading;
-    _boostError = null;
-    notifyListeners();
-
-    try {
-      _activeBoosts = await _boostService.getActiveBoosts();
-      debugPrint('✅ Loaded ${_activeBoosts.length} active boost(s)');
-      _boostState = LoadingState.loaded;
-    } catch (e) {
-      debugPrint('❌ loadActiveBoosts error: $e');
-      _boostState = LoadingState.error;
-      _boostError = e.toString();
-      if (e.toString().contains('Session expirée')) {
-        await logout();
-      }
-    }
-    notifyListeners();
-  }
-
-  /// Active un boost de visibilité
-  Future<Map<String, dynamic>> activateBoost({
-    required String boostType,
-    required int radiusKm,
-  }) async {
-    debugPrint('⚡ Activating boost: $boostType, radius: $radiusKm km');
-
-    final result = await _boostService.activateBoost(
-      boostType: boostType,
-      radiusKm: radiusKm,
-    );
-
-    if (result['success'] == true) {
-      debugPrint('✅ Boost activated, refreshing data...');
-      await loadActiveBoosts();
-      await loadActivityFeed();
-    }
-
-    if (result['sessionExpired'] == true) {
-      await logout();
-    }
-
-    return result;
-  }
 
   // ─── Méthodes de l'Activité ───────────────────────────
 
@@ -744,6 +686,9 @@ class PharmacyViewModel extends ChangeNotifier {
 
   /// Met à jour le statut en ligne/hors ligne de la pharmacie
   Future<bool> updateOnlineStatus(bool isOnline) async {
+    // Sauvegarder l'état actuel pour rollback
+    final previousStatus = _pharmacyProfile?.isOnDuty ?? !isOnline;
+    
     try {
       debugPrint('🔄 Updating online status to: $isOnline');
 
@@ -754,73 +699,41 @@ class PharmacyViewModel extends ChangeNotifier {
         throw Exception('Non authentifié');
       }
 
-      // Appel API pour mettre à jour le statut
-      final url = '${ApiConstants.baseUrl}/pharmaciens/$pharmacyId/status';
+      // Mise à jour optimiste du profil local
+      if (_pharmacyProfile != null) {
+        _pharmacyProfile = _pharmacyProfile!.copyWith(isOnDuty: isOnline);
+        notifyListeners();
+      }
+
+      // Appel API pour mettre à jour le statut via l'endpoint de mise à jour pharmacien
+      final url = '${ApiConstants.baseUrl}${ApiConstants.updatePharmacien(pharmacyId)}';
       debugPrint('🌐 URL: $url');
 
-      final response = await http.put(
+      final response = await http.patch(
         Uri.parse(url),
         headers: ApiConstants.authHeaders(token),
         body: jsonEncode({'isOnDuty': isOnline}),
-      );
+      ).timeout(const Duration(seconds: 5));
 
       debugPrint('📥 Status: ${response.statusCode}');
 
-      if (response.statusCode == 200) {
-        debugPrint('✅ Status updated successfully');
-
-        // Mettre à jour le profil local
-        if (_pharmacyProfile != null) {
-          _pharmacyProfile = PharmacyProfile(
-            id: _pharmacyProfile!.id,
-            nom: _pharmacyProfile!.nom,
-            prenom: _pharmacyProfile!.prenom,
-            email: _pharmacyProfile!.email,
-            telephone: _pharmacyProfile!.telephone,
-            role: _pharmacyProfile!.role,
-            nomPharmacie: _pharmacyProfile!.nomPharmacie,
-            numeroOrdre: _pharmacyProfile!.numeroOrdre,
-            telephonePharmacie: _pharmacyProfile!.telephonePharmacie,
-            adressePharmacie: _pharmacyProfile!.adressePharmacie,
-            photoProfil: _pharmacyProfile!.photoProfil,
-            profileImage: _pharmacyProfile!.profileImage,
-            location: _pharmacyProfile!.location,
-            points: _pharmacyProfile!.points,
-            badgeLevel: _pharmacyProfile!.badgeLevel,
-            totalRequestsReceived: _pharmacyProfile!.totalRequestsReceived,
-            totalRequestsAccepted: _pharmacyProfile!.totalRequestsAccepted,
-            totalRequestsDeclined: _pharmacyProfile!.totalRequestsDeclined,
-            totalClients: _pharmacyProfile!.totalClients,
-            totalRevenue: _pharmacyProfile!.totalRevenue,
-            averageResponseTime: _pharmacyProfile!.averageResponseTime,
-            averageRating: _pharmacyProfile!.averageRating,
-            totalReviews: _pharmacyProfile!.totalReviews,
-            isOnDuty: isOnline, // ← Mise à jour
-            notificationsPush: _pharmacyProfile!.notificationsPush,
-            notificationsEmail: _pharmacyProfile!.notificationsEmail,
-            notificationsSMS: _pharmacyProfile!.notificationsSMS,
-            visibilityRadius: _pharmacyProfile!.visibilityRadius,
-            statutCompte: _pharmacyProfile!.statutCompte,
-          );
-        }
-
-        // Mettre à jour aussi dans dashboardData si présent
-        if (_dashboardData != null) {
-          await loadDashboard(); // Recharger pour avoir les données à jour
-        }
-
-        notifyListeners();
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        debugPrint('✅ Status updated successfully on server');
         return true;
-      } else if (response.statusCode == 401) {
-        debugPrint('❌ 401 - Session expirée');
-        await logout();
-        return false;
-      } else {
-        debugPrint('❌ Erreur ${response.statusCode}');
-        return false;
-      }
+      } 
+      
+      // Si échec, on tente l'alternative /duty (toggle) si on ne connaît pas la valeur exacte côté serveur
+      // Mais ici on utilise PATCH avec body, ce qui est plus sûr.
+      
+      throw Exception('Server returned ${response.statusCode}');
     } catch (e) {
       debugPrint('❌ updateOnlineStatus error: $e');
+      
+      // Rollback en cas d'erreur
+      if (_pharmacyProfile != null) {
+        _pharmacyProfile = _pharmacyProfile!.copyWith(isOnDuty: previousStatus);
+        notifyListeners();
+      }
       return false;
     }
   }
